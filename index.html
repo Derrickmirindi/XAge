@@ -49,6 +49,7 @@ video{display:none;}
 .detlist{border-top:2px solid var(--black);padding-top:12px;margin-bottom:24px;max-height:280px;overflow-y:auto;}
 .det-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #ddd;}
 .det-badge{background:var(--red);color:var(--white);padding:4px 8px;font-size:13px;font-weight:900;}
+.debug{border:1px dashed var(--gray);padding:12px;margin-bottom:24px;font-size:12px;color:var(--gray);font-family:'Courier New',monospace;white-space:pre-wrap;max-height:160px;overflow-y:auto;}
 .disclaimer{border-left:4px solid var(--red);padding-left:24px;margin:24px 0;color:var(--gray);font-size:14px;}
 .disclaimer strong{color:var(--black);}
 .compare{border:2px solid var(--black);padding:24px;margin:24px 0 48px;background:#fafafa;}
@@ -82,7 +83,7 @@ footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-siz
 <button class="mode-btn" data-mode="camera">Live Camera</button>
 </div>
 <h4>Model Notes</h4>
-<div class="notes">YOLO26s-Pose detects one hand and predicts 17 anatomical landmarks on pediatric hand X-rays. The blue rectangle is one hand box. Colored circles are landmarks, not separate bounding boxes.</div>
+<div class="notes">YOLO26s-Pose detects exactly one hand and 17 anatomical landmarks per detected hand. The rectangle is one hand box only. The colored circles are landmarks, not separate boxes. There is no per-landmark class list — landmarks are numbered 1–17, not named object classes.</div>
 <h4 style="margin-top:24px;">Landmark Reference (17)</h4>
 <div class="notes" id="landmarkRef"></div>
 </aside>
@@ -111,6 +112,7 @@ footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-siz
 <div class="stat"><div id="statConf" class="stat-v">—</div><div class="stat-k">Hand Confidence</div></div>
 <div class="stat"><div id="statMs" class="stat-v">—</div><div class="stat-k">Inference (ms)</div></div>
 </div>
+<div id="debugBox" class="debug hide"></div>
 <div id="detList" class="detlist"></div>
 </main>
 </div>
@@ -127,7 +129,7 @@ footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-siz
 <a class="btn" href="https://blog.tensorflow.org/2021/11/3D-handpose.html" target="_blank" rel="noopener">Read TF Blog Post</a>
 </div>
 <iframe id="mediapipeFrame" class="compare-frame hide" src="" title="MediaPipe 3D Hand Pose Demo" allow="camera; microphone; autoplay" referrerpolicy="no-referrer-when-downgrade"></iframe>
-<p style="margin-top:12px;font-size:12px;color:var(--gray);">The embedded MediaPipe demonstration requests webcam access and is hosted by Google. Some browsers block camera access inside cross-origin iframes; if it is unavailable, open it in a separate tab.</p>
+<p style="margin-top:12px;font-size:12px;color:var(--gray);">The embedded MediaPipe demo requests webcam access and is hosted by Google. Some browsers block camera access inside cross-origin iframes; if unavailable, open it in a separate tab.</p>
 </section>
 <div class="disclaimer"><strong>Research and educational use only.</strong> XAge is a research prototype for pediatric hand-radiograph landmark localization. It is not a certified medical device and must not be used for clinical diagnosis, treatment, or bone-age reporting.</div>
 <footer>XAge · Pediatric Hand Landmark Detection · Derrick Mirindi · Frederic Mirindi</footer>
@@ -135,52 +137,699 @@ footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-siz
 <script>
 (function(){
 "use strict";
-var $=function(id){return document.getElementById(id);};
-var canvas=$("canvas"),ctx=canvas.getContext("2d"),video=$("video");
-var session=null,mode="image",stream=null,running=false,conf=0.25,iou=0.45,rafId=null,lastImg=null,vidRunning=false,vidRaf=null,inputIsFp16=false,isInferencing=false;
-var CACHE_DB="xage-int8-model-v3",CACHE_KEY="best-int8-pose-v3";
-var MODEL={
-  path:"./best_int8.onnx",
-  inputSize:640,
-  classes:["hand"],
-  keypointCount:17,
-  keypointNames:["Anatomical landmark 1","Anatomical landmark 2","Anatomical landmark 3","Anatomical landmark 4","Anatomical landmark 5","Anatomical landmark 6","Anatomical landmark 7","Anatomical landmark 8","Anatomical landmark 9","Anatomical landmark 10","Anatomical landmark 11","Anatomical landmark 12","Anatomical landmark 13","Anatomical landmark 14","Anatomical landmark 15","Anatomical landmark 16","Anatomical landmark 17"],
-  keypointColors:["#FF1744","#FF6D00","#FFD600","#76FF03","#00E676","#00B0FF","#2979FF","#651FFF","#D500F9","#F50057","#FF5252","#FF9100","#AEEA00","#1DE9B6","#00B8D4","#3D5AFE","#C51162"],
-  skeleton:[[0,1],[1,2],[3,4],[4,5],[6,7],[7,8],[9,10],[10,11],[12,13],[13,14],[14,15],[15,16],[2,5],[5,8],[8,11],[11,14],[14,16]]
+
+var $ = function(id){ return document.getElementById(id); };
+
+var canvas = $("canvas"), ctx = canvas.getContext("2d"), video = $("video");
+var session = null, mode = "image", stream = null, running = false;
+var conf = 0.25, iou = 0.45;
+var rafId = null, lastImg = null, vidRunning = false, vidRaf = null;
+var inputIsFp16 = false, isInferencing = false;
+
+var CACHE_DB = "xage-int8-model-v4";
+var CACHE_KEY = "best-int8-pose-v4";
+
+/*
+  ===========================================================
+  HARD MODEL CONTRACT — do not infer shape heuristically.
+  ===========================================================
+  This model has exactly:
+    - 1 object class: "hand"
+    - 17 keypoints per detected hand
+
+  Every prediction row therefore has EXACTLY:
+    4  (box: cx, cy, w, h)
+  + 1  (hand confidence score)
+  + 17 * 3 (x, y, visibility per keypoint)
+  = 56 values total.
+
+  There is NO class index byte in this layout. The previous bug
+  treated offset 5 as a class id ("clsIdx") and looked it up in an
+  18-name array, which produced nonsense labels like "class 134"
+  and duplicated/garbage boxes. That code path has been removed
+  entirely — this version only supports the single-class pose format.
+*/
+var NUM_KEYPOINTS = 17;
+var KP_START = 5;
+var EXPECTED_FEATURES = KP_START + NUM_KEYPOINTS * 3; // 56
+
+var MODEL = {
+  path: "./best_int8.onnx",
+  inputSize: 640,
+  keypointNames: Array.from({length: NUM_KEYPOINTS}, function(_, i){
+    return "Landmark " + (i + 1);
+  }),
+  keypointColors: [
+    "#FF1744","#FF6D00","#FFD600","#76FF03","#00E676","#00B0FF","#2979FF",
+    "#651FFF","#D500F9","#F50057","#FF5252","#FF9100","#AEEA00","#1DE9B6",
+    "#00B8D4","#3D5AFE","#C51162"
+  ],
+  // Visual-only scaffold lines for display; not a claimed anatomical graph.
+  skeleton: [
+    [0,1],[1,2],[3,4],[4,5],[6,7],[7,8],[9,10],[10,11],
+    [12,13],[13,14],[14,15],[15,16],[2,5],[5,8],[8,11],[11,14],[14,16]
+  ]
 };
-function setStatus(text,cls){$("statusText").textContent=text;$("dot").className="status-dot "+(cls||"");}
-function setProgress(pct){var w=$("progressWrap"),b=$("progressBar");if(pct===null){w.classList.add("hide");}else{w.classList.remove("hide");b.style.width=pct+"%";}}
-function f32tof16(v){var f=new Float32Array(1);f[0]=v;var i=new Int32Array(f.buffer)[0],s=(i>>16)&0x8000,e=((i>>23)&255)-127+15,m=i&0x7fffff;if(e<=0){if(e<-10)return s;m=(m|0x800000)>>(1-e);return s|(m>>13);}if(e>=31)return s|0x7c00;return s|(e<<10)|(m>>13);}
-async function openCacheDb(){return await new Promise(function(resolve,reject){var r=indexedDB.open(CACHE_DB,1);r.onupgradeneeded=function(){if(!r.result.objectStoreNames.contains("models"))r.result.createObjectStore("models");};r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error);};});}
-async function getCachedModel(){if(!("indexedDB" in window))return null;try{var db=await openCacheDb();var tx=db.transaction("models","readonly");var value=await new Promise(function(resolve,reject){var r=tx.objectStore("models").get(CACHE_KEY);r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error);};});db.close();return value&&value.buffer?value.buffer:null;}catch(e){console.warn("Cache read failed:",e);return null;}}
-async function setCachedModel(buffer){if(!("indexedDB" in window))return;try{var db=await openCacheDb();var tx=db.transaction("models","readwrite");tx.objectStore("models").put({buffer:buffer},CACHE_KEY);await new Promise(function(resolve,reject){tx.oncomplete=function(){resolve();};tx.onerror=function(){reject(tx.error);};});db.close();}catch(e){console.warn("Cache write failed:",e);}}
-async function deleteCachedModel(){if(!("indexedDB" in window))return;try{var db=await openCacheDb();var tx=db.transaction("models","readwrite");tx.objectStore("models").delete(CACHE_KEY);await new Promise(function(resolve,reject){tx.oncomplete=function(){resolve();};tx.onerror=function(){reject(tx.error);};});db.close();}catch(e){console.warn("Cache delete failed:",e);}}
-async function downloadModel(url){var response=await fetch(url,{cache:"no-store"});if(!response.ok)throw new Error("Model download failed ("+response.status+") for "+url+". Place best_int8.onnx beside index.html.");if(!response.body)return await response.arrayBuffer();var total=Number(response.headers.get("content-length"))||0,reader=response.body.getReader(),received=0,chunks=[];while(true){var item=await reader.read();if(item.done)break;chunks.push(item.value);received+=item.value.length;if(total>0)setProgress(Math.round(received/total*100));}return await new Blob(chunks).arrayBuffer();}
-function configureOrt(){ort.env.wasm.numThreads=1;ort.env.wasm.simd=true;}
-async function createSession(buffer){try{return await ort.InferenceSession.create(buffer,{executionProviders:["wasm"],graphOptimizationLevel:"all"});}catch(error){var message=String(error&&error.message||error);if(/images|graph|model|int8|quant|unsupported/i.test(message)){throw new Error("The browser could not load best_int8.onnx. This INT8 export may contain operators unsupported by ONNX Runtime Web/WASM. Export a browser-compatible ONNX model or use the non-INT8 best.onnx fallback. Original error: "+message);}throw error;}}
-async function loadModel(){try{if(typeof ort==="undefined"){setStatus("ONNX Runtime failed to load. Check the CDN/network connection.","err");return;}configureOrt();setStatus("Loading best_int8.onnx...","busy");setProgress(0);var buffer=await getCachedModel();if(buffer){setStatus("Loading best_int8.onnx from cache...","busy");}else{setStatus("Downloading best_int8.onnx...","busy");buffer=await downloadModel(MODEL.path);await setCachedModel(buffer);}setProgress(null);setStatus("Creating ONNX Runtime session...","busy");try{session=await createSession(buffer);}catch(cachedError){await deleteCachedModel();setStatus("Refreshing model cache...","busy");setProgress(0);buffer=await downloadModel(MODEL.path);setProgress(null);await setCachedModel(buffer);session=await createSession(buffer);}var inputMeta=session.inputMetadata[session.inputNames[0]];var inputType=String(inputMeta.type||inputMeta.dataType||"");inputIsFp16=/float16|fp16/i.test(inputType);console.log("ONNX model:",MODEL.path);console.log("Input metadata:",inputMeta);console.log("Output metadata:",session.outputNames.map(function(n){return {name:n,meta:session.outputMetadata[n]};}));setStatus("Ready — upload a hand X-ray image","on");}catch(error){console.error(error);setProgress(null);setStatus("Model load error: "+String(error.message||error),"err");}}
-function preprocess(source,sw,sh){var S=MODEL.inputSize,scale=Math.min(S/sw,S/sh),nw=Math.round(sw*scale),nh=Math.round(sh*scale),padX=Math.floor((S-nw)/2),padY=Math.floor((S-nh)/2),off=document.createElement("canvas");off.width=S;off.height=S;var c=off.getContext("2d");c.fillStyle="#727272";c.fillRect(0,0,S,S);c.drawImage(source,0,0,sw,sh,padX,padY,nw,nh);var rgba=c.getImageData(0,0,S,S).data,area=S*S,data=new Float32Array(area*3);for(var p=0;p<area;p++){data[p]=rgba[p*4]/255;data[area+p]=rgba[p*4+1]/255;data[area*2+p]=rgba[p*4+2]/255;}var tensor;if(inputIsFp16){var half=new Uint16Array(data.length);for(var j=0;j<data.length;j++)half[j]=f32tof16(data[j]);tensor=new ort.Tensor("float16",half,[1,3,S,S]);}else{tensor=new ort.Tensor("float32",data,[1,3,S,S]);}return{tensor:tensor,scale:scale,padX:padX,padY:padY};}
-function iouCalc(a,b){var x1=Math.max(a[0],b[0]),y1=Math.max(a[1],b[1]),x2=Math.min(a[2],b[2]),y2=Math.min(a[3],b[3]),w=Math.max(0,x2-x1),h=Math.max(0,y2-y1),inter=w*h,areaA=Math.max(0,a[2]-a[0])*Math.max(0,a[3]-a[1]),areaB=Math.max(0,b[2]-b[0])*Math.max(0,b[3]-b[1]);return inter/(areaA+areaB-inter+1e-9);}
-function nmsPose(dets){dets.sort(function(a,b){return b.score-a.score;});var keep=[];for(var i=0;i<dets.length;i++){var accepted=true;for(var j=0;j<keep.length;j++){if(iouCalc(dets[i].box,keep[j].box)>iou){accepted=false;break;}}if(accepted)keep.push(dets[i]);}return keep;}
-function valueAt(data,layout,predIndex,featureIndex,nPred,nFeat){return layout==="features_first"?data[featureIndex*nPred+predIndex]:data[predIndex*nFeat+featureIndex];}
-function getPrimaryOutput(outputs){var preferred=session.outputNames[0];return outputs[preferred]||outputs[Object.keys(outputs)[0]];}
-function postprocessPose(output,pre){var dims=output.dims,data=output.data,nPred,nFeat,layout;if(dims.length===3&&Number(dims[1])>=56&&Number(dims[1])<Number(dims[2])){nFeat=Number(dims[1]);nPred=Number(dims[2]);layout="features_first";}else if(dims.length===3&&Number(dims[2])>=56){nPred=Number(dims[1]);nFeat=Number(dims[2]);layout="predictions_first";}else{throw new Error("Unexpected pose output shape ["+dims.join(", ")+"]. Expected [1,56,N] or [1,N,56]. Inspect the browser console for output metadata.");}var required=5+MODEL.keypointCount*3;if(nFeat<required)throw new Error("ONNX output provides "+nFeat+" values per prediction, but "+required+" are required for one hand class and 17 keypoints.");var dets=[];for(var pi=0;pi<nPred;pi++){var cx=valueAt(data,layout,pi,0,nPred,nFeat),cy=valueAt(data,layout,pi,1,nPred,nFeat),bw=valueAt(data,layout,pi,2,nPred,nFeat),bh=valueAt(data,layout,pi,3,nPred,nFeat),score=valueAt(data,layout,pi,4,nPred,nFeat);if(!Number.isFinite(score)||score<conf)continue;var kpts=[];for(var k=0;k<MODEL.keypointCount;k++){var off=5+k*3,kx=valueAt(data,layout,pi,off,nPred,nFeat),ky=valueAt(data,layout,pi,off+1,nPred,nFeat),ks=valueAt(data,layout,pi,off+2,nPred,nFeat);kpts.push({x:(kx-pre.padX)/pre.scale,y:(ky-pre.padY)/pre.scale,score:ks});}dets.push({box:[(cx-bw/2-pre.padX)/pre.scale,(cy-bh/2-pre.padY)/pre.scale,(cx+bw/2-pre.padX)/pre.scale,(cy+bh/2-pre.padY)/pre.scale],score:score,keypoints:kpts});}return nmsPose(dets);}
-function clip(v,min,max){return Math.max(min,Math.min(max,v));}
-function draw(source,sw,sh,dets){canvas.width=sw;canvas.height=sh;ctx.drawImage(source,0,0,sw,sh);var line=Math.max(2,sw/360),radius=Math.max(4,sw/210),font=Math.max(13,Math.round(sw/42));ctx.lineJoin="round";ctx.lineCap="round";(dets||[]).forEach(function(d){var x1=clip(d.box[0],0,sw),y1=clip(d.box[1],0,sh),x2=clip(d.box[2],0,sw),y2=clip(d.box[3],0,sh),bw=Math.max(1,x2-x1),bh=Math.max(1,y2-y1);ctx.strokeStyle="#0057E7";ctx.lineWidth=line;ctx.strokeRect(x1,y1,bw,bh);var label="hand "+(d.score*100).toFixed(1)+"%";ctx.font="bold "+font+"px Helvetica,Arial,sans-serif";var tw=ctx.measureText(label).width,th=font+8;ctx.fillStyle="#0057E7";ctx.fillRect(x1,Math.max(0,y1-th),tw+12,th);ctx.fillStyle="#FFF";ctx.fillText(label,x1+6,Math.max(font,y1-6));ctx.lineWidth=Math.max(1.5,sw/500);MODEL.skeleton.forEach(function(edge){var a=d.keypoints[edge[0]],b=d.keypoints[edge[1]];if(!a||!b||a.score<0.05||b.score<0.05)return;ctx.strokeStyle="rgba(0,0,0,0.62)";ctx.beginPath();ctx.moveTo(clip(a.x,0,sw),clip(a.y,0,sh));ctx.lineTo(clip(b.x,0,sw),clip(b.y,0,sh));ctx.stroke();});d.keypoints.forEach(function(k,index){if(!Number.isFinite(k.score)||k.score<0.05)return;var x=clip(k.x,0,sw),y=clip(k.y,0,sh),color=MODEL.keypointColors[index];ctx.beginPath();ctx.fillStyle="#000";ctx.arc(x,y,radius+2,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.fillStyle=color;ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();ctx.font="bold "+Math.max(10,Math.round(font*0.72))+"px Helvetica,Arial,sans-serif";var lx=x+radius+3,ly=y-radius-2;ctx.lineWidth=3;ctx.strokeStyle="#FFF";ctx.strokeText(String(index+1),lx,ly);ctx.fillStyle="#000";ctx.fillText(String(index+1),lx,ly);});});}
-function updateStats(dets,ms){var count=0,max=0;(dets||[]).forEach(function(d){max=Math.max(max,d.score);d.keypoints.forEach(function(k){if(Number.isFinite(k.score)&&k.score>=0.05)count++;});});$("statNotes").textContent=count;$("statConf").textContent=max?(max*100).toFixed(1)+"%":"—";$("statMs").textContent=ms?Math.round(ms):"—";var list=$("detList");list.innerHTML="";if(!dets||!dets.length){list.innerHTML="<div class='det-row'><span>No hand detected at the selected confidence threshold.</span></div>";return;}dets.forEach(function(d){var r=document.createElement("div");r.className="det-row";r.innerHTML="<span class='det-badge' style='background:#0057E7'>Hand</span><span>"+(d.score*100).toFixed(1)+"%</span>";list.appendChild(r);d.keypoints.forEach(function(k,index){var row=document.createElement("div");row.className="det-row";var badge=document.createElement("span");badge.className="det-badge";badge.style.background=MODEL.keypointColors[index];badge.textContent="Landmark "+(index+1);var score=document.createElement("span");score.textContent=Number.isFinite(k.score)&&k.score>=0.05?(k.score*100).toFixed(1)+"%":"Not visible";row.appendChild(badge);row.appendChild(score);list.appendChild(row);});});}
-async function runInference(source,sw,sh){if(!session){setStatus("Model is not ready yet.","busy");return;}if(!sw||!sh||isInferencing)return;isInferencing=true;try{var pre=preprocess(source,sw,sh),feeds={};feeds[session.inputNames[0]]=pre.tensor;var start=performance.now(),outputs=await session.run(feeds),elapsed=performance.now()-start,output=getPrimaryOutput(outputs),dets=postprocessPose(output,pre);draw(source,sw,sh,dets);updateStats(dets,elapsed);setStatus(dets.length?"Hand pose detected":"No hand detected — lower confidence or try another X-ray","on");return dets;}catch(error){console.error(error);setStatus("Inference error: "+String(error.message||error),"err");}finally{isInferencing=false;}}
-function handleFile(file){if(!file)return;var image=new Image();image.onload=function(){lastImg=image;runInference(image,image.naturalWidth,image.naturalHeight);};image.onerror=function(){setStatus("Could not load the selected image.","err");};image.src=URL.createObjectURL(file);}
-function handleVideoFile(file){if(!file)return;stopVideo();stopCamera();video.srcObject=null;video.src=URL.createObjectURL(file);video.loop=false;video.muted=true;video.onloadeddata=function(){$("playVid").disabled=false;$("pauseVid").disabled=false;setStatus("Video loaded — press Play.","on");draw(video,video.videoWidth,video.videoHeight,[]);};video.onended=function(){stopVideo();setStatus("Video ended.","on");};video.onerror=function(){setStatus("Could not load video.","err");};}
-async function videoLoop(){if(!vidRunning)return;if(video.readyState>=2&&!video.paused&&!video.ended)await runInference(video,video.videoWidth,video.videoHeight);vidRaf=requestAnimationFrame(videoLoop);}
-async function playVideo(){if(!video.src)return;try{await video.play();vidRunning=true;setStatus("Video pose detection running.","on");videoLoop();}catch(e){console.error(e);setStatus("Could not play video.","err");}}
-function stopVideo(){vidRunning=false;if(vidRaf)cancelAnimationFrame(vidRaf);if(video&&video.src&&!video.paused){try{video.pause();}catch(e){}}}
-async function cameraLoop(){if(!running)return;if(video.readyState>=2)await runInference(video,video.videoWidth,video.videoHeight);rafId=requestAnimationFrame(cameraLoop);}
-async function startCamera(){try{stopVideo();stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});video.srcObject=stream;await video.play();running=true;$("startCam").disabled=true;$("stopCam").disabled=false;setStatus("Live pose detection running.","on");cameraLoop();}catch(e){console.error(e);setStatus("Camera access denied or unavailable.","err");}}
-function stopCamera(){running=false;if(rafId)cancelAnimationFrame(rafId);if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}$("startCam").disabled=false;$("stopCam").disabled=true;}
-function setMode(newMode){mode=newMode;document.querySelectorAll(".mode-btn").forEach(function(button){button.classList.toggle("active",button.getAttribute("data-mode")===newMode);});$("imagePane").classList.add("hide");$("videoPane").classList.add("hide");$("camPane").classList.add("hide");if(newMode==="image"){$("imagePane").classList.remove("hide");stopCamera();stopVideo();}else if(newMode==="video"){$("videoPane").classList.remove("hide");stopCamera();}else{$("camPane").classList.remove("hide");stopVideo();}}
-function renderLandmarkRef(){var ref=$("landmarkRef"),html="<ol style='margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6;'>";for(var i=0;i<MODEL.keypointCount;i++)html+="<li><span style='display:inline-block;width:10px;height:10px;background:"+MODEL.keypointColors[i]+";margin-right:6px;vertical-align:middle;'></span>"+MODEL.keypointNames[i]+"</li>";ref.innerHTML=html+"</ol>";}
-function wireMediapipeEmbed(){var button=$("toggleMediapipeEmbed"),frame=$("mediapipeFrame"),url="https://storage.googleapis.com/tfjs-models/demos/hand-pose-detection/index.html?model=mediapipe_hands";button.addEventListener("click",function(){if(frame.classList.contains("hide")){frame.src=url;frame.classList.remove("hide");button.textContent="Hide Embedded Demo";}else{frame.classList.add("hide");frame.src="";button.textContent="Toggle Embedded Demo";}});}
-function wire(){var dz=$("dropZone"),fi=$("fileInput");dz.addEventListener("click",function(){fi.click();});fi.addEventListener("change",function(e){handleFile(e.target.files[0]);});dz.addEventListener("dragover",function(e){e.preventDefault();dz.classList.add("drag");});dz.addEventListener("dragleave",function(){dz.classList.remove("drag");});dz.addEventListener("drop",function(e){e.preventDefault();dz.classList.remove("drag");if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});var vd=$("videoDrop"),vi=$("videoInput");vd.addEventListener("click",function(){vi.click();});vi.addEventListener("change",function(e){handleVideoFile(e.target.files[0]);});vd.addEventListener("dragover",function(e){e.preventDefault();vd.classList.add("drag");});vd.addEventListener("dragleave",function(){vd.classList.remove("drag");});vd.addEventListener("drop",function(e){e.preventDefault();vd.classList.remove("drag");if(e.dataTransfer.files.length)handleVideoFile(e.dataTransfer.files[0]);});$("playVid").addEventListener("click",playVideo);$("pauseVid").addEventListener("click",function(){stopVideo();setStatus("Video paused.","on");});$("confSlider").addEventListener("input",function(e){conf=parseFloat(e.target.value);$("confVal").textContent=conf.toFixed(2);if(mode==="image"&&lastImg)runInference(lastImg,lastImg.naturalWidth,lastImg.naturalHeight);});$("iouSlider").addEventListener("input",function(e){iou=parseFloat(e.target.value);$("iouVal").textContent=iou.toFixed(2);if(mode==="image"&&lastImg)runInference(lastImg,lastImg.naturalWidth,lastImg.naturalHeight);});document.querySelectorAll(".mode-btn").forEach(function(button){button.addEventListener("click",function(){setMode(button.getAttribute("data-mode"));});});$("startCam").addEventListener("click",startCamera);$("stopCam").addEventListener("click",function(){stopCamera();setStatus("Camera stopped.","on");});wireMediapipeEmbed();renderLandmarkRef();}
+
+function setStatus(text, cls){
+  $("statusText").textContent = text;
+  $("dot").className = "status-dot " + (cls || "");
+}
+
+function setProgress(pct){
+  var wrap = $("progressWrap"), bar = $("progressBar");
+  if(pct === null){ wrap.classList.add("hide"); }
+  else { wrap.classList.remove("hide"); bar.style.width = pct + "%"; }
+}
+
+function showDebug(text){
+  var box = $("debugBox");
+  box.textContent = text;
+  box.classList.remove("hide");
+}
+
+function f32tof16(value){
+  var f = new Float32Array(1); f[0] = value;
+  var bits = new Int32Array(f.buffer)[0];
+  var sign = (bits >> 16) & 0x8000;
+  var exponent = ((bits >> 23) & 0xff) - 127 + 15;
+  var mantissa = bits & 0x7fffff;
+  if(exponent <= 0){
+    if(exponent < -10) return sign;
+    mantissa = (mantissa | 0x800000) >> (1 - exponent);
+    return sign | (mantissa >> 13);
+  }
+  if(exponent >= 31) return sign | 0x7c00;
+  return sign | (exponent << 10) | (mantissa >> 13);
+}
+
+async function openCacheDb(){
+  return await new Promise(function(resolve, reject){
+    var r = indexedDB.open(CACHE_DB, 1);
+    r.onupgradeneeded = function(){
+      if(!r.result.objectStoreNames.contains("models")) r.result.createObjectStore("models");
+    };
+    r.onsuccess = function(){ resolve(r.result); };
+    r.onerror = function(){ reject(r.error); };
+  });
+}
+
+async function getCachedModel(){
+  if(!("indexedDB" in window)) return null;
+  try{
+    var db = await openCacheDb();
+    var tx = db.transaction("models", "readonly");
+    var value = await new Promise(function(resolve, reject){
+      var r = tx.objectStore("models").get(CACHE_KEY);
+      r.onsuccess = function(){ resolve(r.result); };
+      r.onerror = function(){ reject(r.error); };
+    });
+    db.close();
+    return value && value.buffer ? value.buffer : null;
+  }catch(e){ console.warn("Cache read failed:", e); return null; }
+}
+
+async function setCachedModel(buffer){
+  if(!("indexedDB" in window)) return;
+  try{
+    var db = await openCacheDb();
+    var tx = db.transaction("models", "readwrite");
+    tx.objectStore("models").put({buffer: buffer}, CACHE_KEY);
+    await new Promise(function(resolve, reject){
+      tx.oncomplete = function(){ resolve(); };
+      tx.onerror = function(){ reject(tx.error); };
+    });
+    db.close();
+  }catch(e){ console.warn("Cache write failed:", e); }
+}
+
+async function deleteCachedModel(){
+  if(!("indexedDB" in window)) return;
+  try{
+    var db = await openCacheDb();
+    var tx = db.transaction("models", "readwrite");
+    tx.objectStore("models").delete(CACHE_KEY);
+    await new Promise(function(resolve, reject){
+      tx.oncomplete = function(){ resolve(); };
+      tx.onerror = function(){ reject(tx.error); };
+    });
+    db.close();
+  }catch(e){ console.warn("Cache delete failed:", e); }
+}
+
+async function downloadModel(url){
+  var response = await fetch(url, {cache: "no-store"});
+  if(!response.ok){
+    throw new Error("Model download failed (" + response.status + ") for " + url +
+      ". Place best_int8.onnx beside this HTML file.");
+  }
+  if(!response.body) return await response.arrayBuffer();
+  var total = Number(response.headers.get("content-length")) || 0;
+  var reader = response.body.getReader();
+  var received = 0, chunks = [];
+  while(true){
+    var item = await reader.read();
+    if(item.done) break;
+    chunks.push(item.value);
+    received += item.value.length;
+    if(total > 0) setProgress(Math.round(received / total * 100));
+  }
+  return await new Blob(chunks).arrayBuffer();
+}
+
+async function createSession(buffer){
+  try{
+    return await ort.InferenceSession.create(buffer, {
+      executionProviders: ["wasm"],
+      graphOptimizationLevel: "all"
+    });
+  }catch(error){
+    var msg = String(error && error.message || error);
+    throw new Error(
+      "ONNX Runtime Web could not load best_int8.onnx (" + msg + "). " +
+      "This can happen if the INT8 export uses operators unsupported in the browser WASM runtime. " +
+      "Try the non-quantized best.onnx as a fallback."
+    );
+  }
+}
+
+async function loadModel(){
+  try{
+    if(typeof ort === "undefined"){
+      setStatus("ONNX Runtime failed to load. Check the CDN/network connection.", "err");
+      return;
+    }
+    ort.env.wasm.numThreads = 1;
+    ort.env.wasm.simd = true;
+
+    setStatus("Loading best_int8.onnx...", "busy");
+    setProgress(0);
+
+    var buffer = await getCachedModel();
+    if(buffer){
+      setStatus("Loading best_int8.onnx from cache...", "busy");
+    } else {
+      setStatus("Downloading best_int8.onnx...", "busy");
+      buffer = await downloadModel(MODEL.path);
+      await setCachedModel(buffer);
+    }
+    setProgress(null);
+
+    setStatus("Creating ONNX Runtime session...", "busy");
+    try{
+      session = await createSession(buffer);
+    }catch(firstError){
+      await deleteCachedModel();
+      setStatus("Refreshing cache and retrying...", "busy");
+      setProgress(0);
+      buffer = await downloadModel(MODEL.path);
+      setProgress(null);
+      await setCachedModel(buffer);
+      session = await createSession(buffer);
+    }
+
+    var inputMeta = session.inputMetadata[session.inputNames[0]];
+    var inputType = String(inputMeta.type || inputMeta.dataType || "");
+    inputIsFp16 = /float16|fp16/i.test(inputType);
+
+    var outputMeta = session.outputMetadata[session.outputNames[0]];
+    console.log("[XAge] Model:", MODEL.path);
+    console.log("[XAge] Input meta:", inputMeta);
+    console.log("[XAge] Output meta:", outputMeta);
+
+    showDebug(
+      "Output name: " + session.outputNames[0] + "\n" +
+      "Output dims: " + JSON.stringify(outputMeta.shape || outputMeta.dims || "unknown") + "\n" +
+      "Expected features per row: " + EXPECTED_FEATURES + " (4 box + 1 hand-score + 17*3 keypoints)"
+    );
+
+    setStatus("Ready — upload a hand X-ray image", "on");
+  }catch(error){
+    console.error(error);
+    setProgress(null);
+    setStatus("Model load error: " + String(error.message || error), "err");
+  }
+}
+
+function preprocess(source, sw, sh){
+  var S = MODEL.inputSize;
+  var scale = Math.min(S / sw, S / sh);
+  var nw = Math.round(sw * scale), nh = Math.round(sh * scale);
+  var padX = Math.floor((S - nw) / 2), padY = Math.floor((S - nh) / 2);
+
+  var off = document.createElement("canvas");
+  off.width = S; off.height = S;
+  var octx = off.getContext("2d");
+  octx.fillStyle = "#727272";
+  octx.fillRect(0, 0, S, S);
+  octx.drawImage(source, 0, 0, sw, sh, padX, padY, nw, nh);
+
+  var rgba = octx.getImageData(0, 0, S, S).data;
+  var area = S * S;
+  var data = new Float32Array(area * 3);
+  for(var p = 0; p < area; p++){
+    data[p] = rgba[p * 4] / 255;
+    data[area + p] = rgba[p * 4 + 1] / 255;
+    data[area * 2 + p] = rgba[p * 4 + 2] / 255;
+  }
+
+  var tensor;
+  if(inputIsFp16){
+    var half = new Uint16Array(data.length);
+    for(var i = 0; i < data.length; i++) half[i] = f32tof16(data[i]);
+    tensor = new ort.Tensor("float16", half, [1, 3, S, S]);
+  } else {
+    tensor = new ort.Tensor("float32", data, [1, 3, S, S]);
+  }
+
+  return {tensor: tensor, scale: scale, padX: padX, padY: padY};
+}
+
+function iouCalc(a, b){
+  var x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]);
+  var x2 = Math.min(a[2], b[2]), y2 = Math.min(a[3], b[3]);
+  var w = Math.max(0, x2 - x1), h = Math.max(0, y2 - y1);
+  var inter = w * h;
+  var areaA = Math.max(0, a[2] - a[0]) * Math.max(0, a[3] - a[1]);
+  var areaB = Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
+  return inter / (areaA + areaB - inter + 1e-9);
+}
+
+function nmsPose(dets){
+  dets.sort(function(a, b){ return b.score - a.score; });
+  var keep = [];
+  for(var i = 0; i < dets.length; i++){
+    var accept = true;
+    for(var j = 0; j < keep.length; j++){
+      if(iouCalc(dets[i].box, keep[j].box) > iou){ accept = false; break; }
+    }
+    if(accept) keep.push(dets[i]);
+  }
+  return keep;
+}
+
+/*
+  Read one feature value from a raw typed array, given a layout.
+  "features_first"    => dims like [1, 56, N]   (channel-major)
+  "predictions_first"  => dims like [1, N, 56]   (row-major)
+*/
+function valueAt(data, layout, predIdx, featIdx, nPred, nFeat){
+  return layout === "features_first"
+    ? data[featIdx * nPred + predIdx]
+    : data[predIdx * nFeat + featIdx];
+}
+
+function detectLayout(dims){
+  if(dims.length !== 3){
+    throw new Error("Unexpected output rank " + dims.length + ". Expected a 3D tensor.");
+  }
+  var d1 = Number(dims[1]), d2 = Number(dims[2]);
+
+  // features-first: [1, 56, N] where 56 (or more, if extra padding) is small
+  // relative to N (which is typically thousands of anchor predictions).
+  if(d1 === EXPECTED_FEATURES || (d1 >= EXPECTED_FEATURES && d1 < d2)){
+    return {layout: "features_first", nFeat: d1, nPred: d2};
+  }
+  // predictions-first: [1, N, 56]
+  if(d2 === EXPECTED_FEATURES || (d2 >= EXPECTED_FEATURES && d2 < d1)){
+    return {layout: "predictions_first", nFeat: d2, nPred: d1};
+  }
+
+  throw new Error(
+    "Could not match output shape [" + dims.join(", ") + "] to the expected " +
+    EXPECTED_FEATURES + "-feature single-class 17-keypoint pose layout. " +
+    "Re-export the model with a single hand class and 17 keypoints, " +
+    "or inspect the console-logged output metadata."
+  );
+}
+
+function isFiniteNumber(v){
+  return typeof v === "number" && Number.isFinite(v);
+}
+
+function postprocessPose(output, pre, sourceWidth, sourceHeight){
+  var dims = output.dims.map(Number);
+  var data = output.data;
+
+  var layoutInfo = detectLayout(dims);
+  var layout = layoutInfo.layout, nFeat = layoutInfo.nFeat, nPred = layoutInfo.nPred;
+
+  if(nFeat < EXPECTED_FEATURES){
+    throw new Error(
+      "ONNX output provides " + nFeat + " values per prediction, but " +
+      EXPECTED_FEATURES + " are required for 1 hand class + 17 keypoints."
+    );
+  }
+
+  var dets = [];
+  var maxDim = Math.max(sourceWidth, sourceHeight) * 3; // sanity bound
+
+  for(var pi = 0; pi < nPred; pi++){
+    var score = valueAt(data, layout, pi, 4, nPred, nFeat);
+    if(!isFiniteNumber(score)) continue;
+
+    // Reject anything outside a normal probability range.
+    // (This is what silently produced "72602.6%" before: raw un-sanitized values.)
+    if(score < conf || score > 1.0001) continue;
+
+    var cx = valueAt(data, layout, pi, 0, nPred, nFeat);
+    var cy = valueAt(data, layout, pi, 1, nPred, nFeat);
+    var bw = valueAt(data, layout, pi, 2, nPred, nFeat);
+    var bh = valueAt(data, layout, pi, 3, nPred, nFeat);
+
+    if(![cx, cy, bw, bh].every(isFiniteNumber)) continue;
+    if(bw <= 0 || bh <= 0) continue;
+
+    var x1 = (cx - bw / 2 - pre.padX) / pre.scale;
+    var y1 = (cy - bh / 2 - pre.padY) / pre.scale;
+    var x2 = (cx + bw / 2 - pre.padX) / pre.scale;
+    var y2 = (cy + bh / 2 - pre.padY) / pre.scale;
+
+    // Reject boxes that are absurd relative to the actual image size.
+    if(!isFiniteNumber(x1) || !isFiniteNumber(y1) || !isFiniteNumber(x2) || !isFiniteNumber(y2)) continue;
+    if(Math.abs(x2 - x1) > maxDim || Math.abs(y2 - y1) > maxDim) continue;
+
+    var keypoints = [];
+    var validKeypointCount = 0;
+
+    for(var k = 0; k < NUM_KEYPOINTS; k++){
+      var off = KP_START + k * 3;
+      var kx = valueAt(data, layout, pi, off, nPred, nFeat);
+      var ky = valueAt(data, layout, pi, off + 1, nPred, nFeat);
+      var kv = valueAt(data, layout, pi, off + 2, nPred, nFeat);
+
+      var validPoint = isFiniteNumber(kx) && isFiniteNumber(ky) && isFiniteNumber(kv);
+      var px = validPoint ? (kx - pre.padX) / pre.scale : NaN;
+      var py = validPoint ? (ky - pre.padY) / pre.scale : NaN;
+
+      if(validPoint && kv >= 0.05 && kv <= 1.0001) validKeypointCount++;
+
+      keypoints.push({x: px, y: py, score: validPoint ? kv : 0});
+    }
+
+    dets.push({box: [x1, y1, x2, y2], score: score, keypoints: keypoints, validKeypointCount: validKeypointCount});
+  }
+
+  return nmsPose(dets);
+}
+
+function clip(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+function draw(source, sw, sh, dets){
+  canvas.width = sw; canvas.height = sh;
+  ctx.drawImage(source, 0, 0, sw, sh);
+
+  var lineW = Math.max(2, sw / 360);
+  var radius = Math.max(4, sw / 210);
+  var font = Math.max(13, Math.round(sw / 42));
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+
+  (dets || []).forEach(function(d){
+    var x1 = clip(d.box[0], 0, sw), y1 = clip(d.box[1], 0, sh);
+    var x2 = clip(d.box[2], 0, sw), y2 = clip(d.box[3], 0, sh);
+    var bw = Math.max(1, x2 - x1), bh = Math.max(1, y2 - y1);
+
+    // Exactly ONE box per detected hand instance — never per landmark.
+    ctx.strokeStyle = "#0057E7";
+    ctx.lineWidth = lineW;
+    ctx.strokeRect(x1, y1, bw, bh);
+
+    var label = "hand " + (d.score * 100).toFixed(1) + "%";
+    ctx.font = "bold " + font + "px Helvetica, Arial, sans-serif";
+    var tw = ctx.measureText(label).width, th = font + 8;
+    ctx.fillStyle = "#0057E7";
+    ctx.fillRect(x1, Math.max(0, y1 - th), tw + 12, th);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillText(label, x1 + 6, Math.max(font, y1 - 6));
+
+    ctx.lineWidth = Math.max(1.5, sw / 500);
+    MODEL.skeleton.forEach(function(edge){
+      var a = d.keypoints[edge[0]], b = d.keypoints[edge[1]];
+      if(!a || !b || a.score < 0.05 || b.score < 0.05) return;
+      if(!isFiniteNumber(a.x) || !isFiniteNumber(a.y) || !isFiniteNumber(b.x) || !isFiniteNumber(b.y)) return;
+      ctx.strokeStyle = "rgba(0,0,0,0.62)";
+      ctx.beginPath();
+      ctx.moveTo(clip(a.x, 0, sw), clip(a.y, 0, sh));
+      ctx.lineTo(clip(b.x, 0, sw), clip(b.y, 0, sh));
+      ctx.stroke();
+    });
+
+    d.keypoints.forEach(function(kp, idx){
+      if(!isFiniteNumber(kp.x) || !isFiniteNumber(kp.y) || kp.score < 0.05) return;
+      var x = clip(kp.x, 0, sw), y = clip(kp.y, 0, sh);
+      var color = MODEL.keypointColors[idx];
+
+      ctx.beginPath(); ctx.fillStyle = "#000"; ctx.arc(x, y, radius + 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.fillStyle = color; ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+
+      ctx.font = "bold " + Math.max(10, Math.round(font * 0.72)) + "px Helvetica, Arial, sans-serif";
+      var lx = x + radius + 3, ly = y - radius - 2;
+      ctx.lineWidth = 3; ctx.strokeStyle = "#FFF";
+      ctx.strokeText(String(idx + 1), lx, ly);
+      ctx.fillStyle = "#000";
+      ctx.fillText(String(idx + 1), lx, ly);
+    });
+  });
+}
+
+function updateStats(dets, ms){
+  var count = 0, maxScore = 0;
+  (dets || []).forEach(function(d){
+    maxScore = Math.max(maxScore, d.score);
+    count += d.validKeypointCount;
+  });
+
+  $("statNotes").textContent = count;
+  $("statConf").textContent = maxScore ? (Math.min(maxScore, 1) * 100).toFixed(1) + "%" : "—";
+  $("statMs").textContent = ms ? Math.round(ms) : "—";
+
+  var list = $("detList");
+  list.innerHTML = "";
+
+  if(!dets || dets.length === 0){
+    list.innerHTML = "<div class='det-row'><span>No hand detected at the selected confidence threshold.</span></div>";
+    return;
+  }
+
+  dets.forEach(function(d){
+    var row = document.createElement("div");
+    row.className = "det-row";
+    row.innerHTML = "<span class='det-badge' style='background:#0057E7'>Hand</span><span>" +
+      (Math.min(d.score, 1) * 100).toFixed(1) + "%</span>";
+    list.appendChild(row);
+
+    d.keypoints.forEach(function(kp, idx){
+      var r = document.createElement("div");
+      r.className = "det-row";
+      var badge = document.createElement("span");
+      badge.className = "det-badge";
+      badge.style.background = MODEL.keypointColors[idx];
+      badge.textContent = "Landmark " + (idx + 1);
+      var score = document.createElement("span");
+      score.textContent = (kp.score >= 0.05 && isFiniteNumber(kp.score))
+        ? (Math.min(kp.score, 1) * 100).toFixed(1) + "%"
+        : "Not visible";
+      r.appendChild(badge);
+      r.appendChild(score);
+      list.appendChild(r);
+    });
+  });
+}
+
+async function runInference(source, sw, sh){
+  if(!session){ setStatus("Model is not ready yet.", "busy"); return; }
+  if(!sw || !sh || isInferencing) return;
+  isInferencing = true;
+  try{
+    var pre = preprocess(source, sw, sh);
+    var feeds = {};
+    feeds[session.inputNames[0]] = pre.tensor;
+
+    var start = performance.now();
+    var outputs = await session.run(feeds);
+    var elapsed = performance.now() - start;
+
+    var output = outputs[session.outputNames[0]] || outputs[Object.keys(outputs)[0]];
+    var dets = postprocessPose(output, pre, sw, sh);
+
+    draw(source, sw, sh, dets);
+    updateStats(dets, elapsed);
+
+    setStatus(
+      dets.length
+        ? "Hand pose detected"
+        : "No hand detected — lower confidence threshold or try another X-ray",
+      "on"
+    );
+    return dets;
+  }catch(error){
+    console.error(error);
+    setStatus("Inference error: " + String(error.message || error), "err");
+  }finally{
+    isInferencing = false;
+  }
+}
+
+function handleFile(file){
+  if(!file) return;
+  var image = new Image();
+  image.onload = function(){
+    lastImg = image;
+    runInference(image, image.naturalWidth, image.naturalHeight);
+  };
+  image.onerror = function(){ setStatus("Could not load the selected image.", "err"); };
+  image.src = URL.createObjectURL(file);
+}
+
+function handleVideoFile(file){
+  if(!file) return;
+  stopVideo(); stopCamera();
+  video.srcObject = null;
+  video.src = URL.createObjectURL(file);
+  video.loop = false; video.muted = true;
+  video.onloadeddata = function(){
+    $("playVid").disabled = false; $("pauseVid").disabled = false;
+    setStatus("Video loaded — press Play.", "on");
+    draw(video, video.videoWidth, video.videoHeight, []);
+  };
+  video.onended = function(){ stopVideo(); setStatus("Video ended.", "on"); };
+  video.onerror = function(){ setStatus("Could not load video.", "err"); };
+}
+
+async function videoLoop(){
+  if(!vidRunning) return;
+  if(video.readyState >= 2 && !video.paused && !video.ended){
+    await runInference(video, video.videoWidth, video.videoHeight);
+  }
+  vidRaf = requestAnimationFrame(videoLoop);
+}
+
+async function playVideo(){
+  if(!video.src) return;
+  try{
+    await video.play();
+    vidRunning = true;
+    setStatus("Video pose detection running.", "on");
+    videoLoop();
+  }catch(e){ console.error(e); setStatus("Could not play video.", "err"); }
+}
+
+function stopVideo(){
+  vidRunning = false;
+  if(vidRaf) cancelAnimationFrame(vidRaf);
+  if(video && video.src && !video.paused){ try{ video.pause(); }catch(e){} }
+}
+
+async function cameraLoop(){
+  if(!running) return;
+  if(video.readyState >= 2) await runInference(video, video.videoWidth, video.videoHeight);
+  rafId = requestAnimationFrame(cameraLoop);
+}
+
+async function startCamera(){
+  try{
+    stopVideo();
+    stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: "environment"}});
+    video.srcObject = stream;
+    await video.play();
+    running = true;
+    $("startCam").disabled = true; $("stopCam").disabled = false;
+    setStatus("Live pose detection running.", "on");
+    cameraLoop();
+  }catch(e){ console.error(e); setStatus("Camera access denied or unavailable.", "err"); }
+}
+
+function stopCamera(){
+  running = false;
+  if(rafId) cancelAnimationFrame(rafId);
+  if(stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
+  $("startCam").disabled = false; $("stopCam").disabled = true;
+}
+
+function setMode(newMode){
+  mode = newMode;
+  document.querySelectorAll(".mode-btn").forEach(function(b){
+    b.classList.toggle("active", b.getAttribute("data-mode") === newMode);
+  });
+  $("imagePane").classList.add("hide");
+  $("videoPane").classList.add("hide");
+  $("camPane").classList.add("hide");
+  if(newMode === "image"){ $("imagePane").classList.remove("hide"); stopCamera(); stopVideo(); }
+  else if(newMode === "video"){ $("videoPane").classList.remove("hide"); stopCamera(); }
+  else{ $("camPane").classList.remove("hide"); stopVideo(); }
+}
+
+function renderLandmarkRef(){
+  var ref = $("landmarkRef");
+  var html = "<ol style='margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6;'>";
+  for(var i = 0; i < NUM_KEYPOINTS; i++){
+    html += "<li><span style='display:inline-block;width:10px;height:10px;background:" +
+      MODEL.keypointColors[i] + ";margin-right:6px;vertical-align:middle;'></span>" +
+      MODEL.keypointNames[i] + "</li>";
+  }
+  ref.innerHTML = html + "</ol>";
+}
+
+function wireMediapipeEmbed(){
+  var button = $("toggleMediapipeEmbed"), frame = $("mediapipeFrame");
+  var url = "https://storage.googleapis.com/tfjs-models/demos/hand-pose-detection/index.html?model=mediapipe_hands";
+  button.addEventListener("click", function(){
+    if(frame.classList.contains("hide")){
+      frame.src = url; frame.classList.remove("hide");
+      button.textContent = "Hide Embedded Demo";
+    } else {
+      frame.classList.add("hide"); frame.src = "";
+      button.textContent = "Toggle Embedded Demo";
+    }
+  });
+}
+
+function wire(){
+  var dz = $("dropZone"), fi = $("fileInput");
+  dz.addEventListener("click", function(){ fi.click(); });
+  fi.addEventListener("change", function(e){ handleFile(e.target.files[0]); });
+  dz.addEventListener("dragover", function(e){ e.preventDefault(); dz.classList.add("drag"); });
+  dz.addEventListener("dragleave", function(){ dz.classList.remove("drag"); });
+  dz.addEventListener("drop", function(e){
+    e.preventDefault(); dz.classList.remove("drag");
+    if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+
+  var vd = $("videoDrop"), vi = $("videoInput");
+  vd.addEventListener("click", function(){ vi.click(); });
+  vi.addEventListener("change", function(e){ handleVideoFile(e.target.files[0]); });
+  vd.addEventListener("dragover", function(e){ e.preventDefault(); vd.classList.add("drag"); });
+  vd.addEventListener("dragleave", function(){ vd.classList.remove("drag"); });
+  vd.addEventListener("drop", function(e){
+    e.preventDefault(); vd.classList.remove("drag");
+    if(e.dataTransfer.files.length) handleVideoFile(e.dataTransfer.files[0]);
+  });
+
+  $("playVid").addEventListener("click", playVideo);
+  $("pauseVid").addEventListener("click", function(){ stopVideo(); setStatus("Video paused.", "on"); });
+
+  $("confSlider").addEventListener("input", function(e){
+    conf = parseFloat(e.target.value);
+    $("confVal").textContent = conf.toFixed(2);
+    if(mode === "image" && lastImg) runInference(lastImg, lastImg.naturalWidth, lastImg.naturalHeight);
+  });
+  $("iouSlider").addEventListener("input", function(e){
+    iou = parseFloat(e.target.value);
+    $("iouVal").textContent = iou.toFixed(2);
+    if(mode === "image" && lastImg) runInference(lastImg, lastImg.naturalWidth, lastImg.naturalHeight);
+  });
+
+  document.querySelectorAll(".mode-btn").forEach(function(b){
+    b.addEventListener("click", function(){ setMode(b.getAttribute("data-mode")); });
+  });
+
+  $("startCam").addEventListener("click", startCamera);
+  $("stopCam").addEventListener("click", function(){ stopCamera(); setStatus("Camera stopped.", "on"); });
+
+  wireMediapipeEmbed();
+  renderLandmarkRef();
+}
+
 wire();
 loadModel();
 })();
