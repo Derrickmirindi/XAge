@@ -2,200 +2,2108 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>XAge · Pediatric Hand Landmark Detection</title>
+
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+
 <style>
-:root{--maxw:1200px;--margin:48px;--lh:24px;--red:#C8102E;--gold:#FFC400;--black:#111;--white:#FFF;--gray:#666;}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-body{min-height:100vh;font-family:'Helvetica Neue','Inter','Helvetica','Arial',sans-serif;font-size:16px;line-height:var(--lh);color:var(--black);background:var(--white);-webkit-font-smoothing:antialiased;}
-.container{max-width:var(--maxw);margin:0 auto;padding:0 var(--margin);}
-header{padding:48px 0 24px;border-bottom:1px solid var(--black);margin-bottom:32px;}
-.logo{font-size:48px;font-weight:900;letter-spacing:-0.03em;line-height:1;color:var(--red);margin-bottom:8px;}
-.tagline{font-size:18px;color:var(--gray);max-width:60ch;}
-.grid{display:grid;grid-template-columns:1fr 2fr;gap:32px;}
-h4{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;}
-.modes{margin-bottom:24px;}
-.mode-btn{display:block;width:100%;text-align:left;background:var(--white);border:2px solid var(--black);color:var(--black);padding:16px;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.15s;margin-bottom:8px;}
-.mode-btn:hover{background:var(--black);color:var(--white);}
-.mode-btn.active{background:var(--red);color:var(--white);border-color:var(--red);}
-.notes{font-size:14px;color:var(--gray);}
-.drop-zone{border:2px dashed var(--gray);padding:48px 24px;text-align:center;cursor:pointer;margin-bottom:24px;transition:all 0.2s;}
-.drop-zone:hover,.drop-zone.drag{border-color:var(--red);background:rgba(200,16,46,0.05);}
-.drop-zone strong{color:var(--red);}
-.hide{display:none!important;}
-.controls{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;}
-.control label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);margin-bottom:8px;}
-input[type=range]{width:100%;accent-color:var(--red);}
-.cam-btns{margin-bottom:24px;}
-.btn{border:2px solid var(--black);background:var(--white);color:var(--black);padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em;margin-right:8px;}
-.btn.primary{background:var(--red);color:var(--white);border-color:var(--red);}
-.btn:disabled{opacity:0.3;cursor:not-allowed;}
-.canvas-wrap{position:relative;width:100%;min-height:360px;border:2px solid var(--black);margin-bottom:16px;display:flex;align-items:center;justify-content:center;background:var(--black);}
-canvas{display:block;max-width:100%;height:auto;}
-video{display:none;}
-.status{display:flex;align-items:center;gap:12px;padding:16px;border:1px solid var(--black);margin-bottom:16px;}
-.status-dot{width:16px;height:16px;border-radius:50%;background:var(--gray);flex:none;}
-.status-dot.on{background:var(--red);}
-.status-dot.busy{background:var(--gold);animation:pulse 1s infinite;}
-.status-dot.err{background:var(--black);}
-@keyframes pulse{50%{opacity:0.3;}}
-.progress{height:8px;background:#eee;overflow:hidden;margin-bottom:16px;}
-.progress-bar{height:100%;background:var(--red);width:0;transition:width 0.3s;}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
-.stat{border:2px solid var(--black);padding:16px;}
-.stat-v{font-size:36px;font-weight:900;line-height:1;color:var(--red);margin-bottom:4px;}
-.stat-k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);}
-.detlist{border-top:2px solid var(--black);padding-top:12px;margin-bottom:24px;max-height:280px;overflow-y:auto;}
-.det-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #ddd;}
-.det-badge{background:var(--red);color:var(--white);padding:4px 8px;font-size:13px;font-weight:900;}
-.disclaimer{border-left:4px solid var(--red);padding-left:24px;margin:24px 0 24px;color:var(--gray);font-size:14px;}
-.disclaimer strong{color:var(--black);}
-.compare{border:2px solid var(--black);padding:24px;margin:24px 0 48px;background:#fafafa;}
-.compare h3{font-size:20px;font-weight:900;color:var(--red);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.02em;}
-.compare p{font-size:14px;color:var(--gray);margin-bottom:16px;line-height:1.6;}
-.compare .cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
-.compare .cmp-card{border:1px solid var(--black);padding:16px;background:var(--white);}
-.compare .cmp-card h5{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;}
-.compare .cmp-card p{font-size:13px;color:var(--black);margin-bottom:8px;line-height:1.5;}
-.compare .cmp-card ul{list-style:none;font-size:12px;color:var(--gray);}
-.compare .cmp-card li{padding:2px 0;}
-.compare .cmp-card li::before{content:"— ";color:var(--red);font-weight:900;}
-.compare .cmp-actions{display:flex;flex-wrap:wrap;gap:12px;}
-.compare-frame{width:100%;height:520px;border:2px solid var(--black);background:var(--black);margin-top:16px;}
-footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-size:12px;color:var(--gray);}
-@media(max-width:900px){:root{--margin:24px;}.grid{grid-template-columns:1fr;}.controls{grid-template-columns:1fr;}.compare .cmp-grid{grid-template-columns:1fr;}}
+:root{
+  --maxw:1200px;
+  --margin:48px;
+  --lh:24px;
+  --red:#C8102E;
+  --gold:#FFC400;
+  --black:#111;
+  --white:#FFF;
+  --gray:#666;
+  --blue:#0066CC;
+}
+
+*,*::before,*::after{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
+
+body{
+  min-height:100vh;
+  font-family:"Helvetica Neue","Inter",Helvetica,Arial,sans-serif;
+  font-size:16px;
+  line-height:var(--lh);
+  color:var(--black);
+  background:var(--white);
+  -webkit-font-smoothing:antialiased;
+}
+
+.container{
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:0 var(--margin);
+}
+
+header{
+  padding:48px 0 24px;
+  border-bottom:1px solid var(--black);
+  margin-bottom:32px;
+}
+
+.logo{
+  font-size:48px;
+  font-weight:900;
+  letter-spacing:-0.03em;
+  line-height:1;
+  color:var(--red);
+  margin-bottom:8px;
+}
+
+.tagline{
+  font-size:18px;
+  color:var(--gray);
+  max-width:65ch;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr 2fr;
+  gap:32px;
+}
+
+h4{
+  font-size:14px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  margin-bottom:8px;
+}
+
+.modes{
+  margin-bottom:24px;
+}
+
+.mode-btn{
+  display:block;
+  width:100%;
+  text-align:left;
+  background:var(--white);
+  border:2px solid var(--black);
+  color:var(--black);
+  padding:16px;
+  font-size:16px;
+  font-weight:700;
+  cursor:pointer;
+  transition:all 0.15s;
+  margin-bottom:8px;
+}
+
+.mode-btn:hover{
+  background:var(--black);
+  color:var(--white);
+}
+
+.mode-btn.active{
+  background:var(--red);
+  color:var(--white);
+  border-color:var(--red);
+}
+
+.notes{
+  font-size:14px;
+  color:var(--gray);
+}
+
+.drop-zone{
+  border:2px dashed var(--gray);
+  padding:48px 24px;
+  text-align:center;
+  cursor:pointer;
+  margin-bottom:24px;
+  transition:all 0.2s;
+}
+
+.drop-zone:hover,
+.drop-zone.drag{
+  border-color:var(--red);
+  background:rgba(200,16,46,0.05);
+}
+
+.drop-zone strong{
+  color:var(--red);
+}
+
+.hide{
+  display:none!important;
+}
+
+.controls{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:24px;
+  margin-bottom:24px;
+}
+
+.control label{
+  display:block;
+  font-size:12px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.1em;
+  color:var(--gray);
+  margin-bottom:8px;
+}
+
+input[type=range]{
+  width:100%;
+  accent-color:var(--red);
+}
+
+.cam-btns{
+  margin-bottom:24px;
+}
+
+.btn{
+  display:inline-block;
+  text-decoration:none;
+  border:2px solid var(--black);
+  background:var(--white);
+  color:var(--black);
+  padding:12px 24px;
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  margin-right:8px;
+}
+
+.btn.primary{
+  background:var(--red);
+  color:var(--white);
+  border-color:var(--red);
+}
+
+.btn:disabled{
+  opacity:0.3;
+  cursor:not-allowed;
+}
+
+.canvas-wrap{
+  position:relative;
+  width:100%;
+  min-height:360px;
+  border:2px solid var(--black);
+  margin-bottom:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--black);
+  overflow:hidden;
+}
+
+canvas{
+  display:block;
+  max-width:100%;
+  height:auto;
+}
+
+video{
+  display:none;
+}
+
+.status{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:16px;
+  border:1px solid var(--black);
+  margin-bottom:16px;
+}
+
+.status-dot{
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  background:var(--gray);
+  flex:none;
+}
+
+.status-dot.on{
+  background:var(--red);
+}
+
+.status-dot.busy{
+  background:var(--gold);
+  animation:pulse 1s infinite;
+}
+
+.status-dot.err{
+  background:var(--black);
+}
+
+@keyframes pulse{
+  50%{opacity:0.3;}
+}
+
+.progress{
+  height:8px;
+  background:#eee;
+  overflow:hidden;
+  margin-bottom:16px;
+}
+
+.progress-bar{
+  height:100%;
+  background:var(--red);
+  width:0;
+  transition:width 0.3s;
+}
+
+.stats{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+  margin-bottom:24px;
+}
+
+.stat{
+  border:2px solid var(--black);
+  padding:16px;
+}
+
+.stat-v{
+  font-size:32px;
+  font-weight:900;
+  line-height:1;
+  color:var(--red);
+  margin-bottom:4px;
+  overflow-wrap:anywhere;
+}
+
+.stat-k{
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.1em;
+  color:var(--gray);
+}
+
+.detlist{
+  border-top:2px solid var(--black);
+  padding-top:12px;
+  margin-bottom:24px;
+  max-height:340px;
+  overflow-y:auto;
+}
+
+.det-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:8px 0;
+  border-bottom:1px solid #ddd;
+}
+
+.det-badge{
+  color:var(--white);
+  padding:4px 8px;
+  font-size:13px;
+  font-weight:900;
+}
+
+.det-muted{
+  font-size:13px;
+  color:var(--gray);
+}
+
+.disclaimer{
+  border-left:4px solid var(--red);
+  padding-left:24px;
+  margin:24px 0;
+  color:var(--gray);
+  font-size:14px;
+}
+
+.disclaimer strong{
+  color:var(--black);
+}
+
+.compare{
+  border:2px solid var(--black);
+  padding:24px;
+  margin:24px 0 48px;
+  background:#fafafa;
+}
+
+.compare h3{
+  font-size:20px;
+  font-weight:900;
+  color:var(--red);
+  margin-bottom:8px;
+  text-transform:uppercase;
+  letter-spacing:0.02em;
+}
+
+.compare p{
+  font-size:14px;
+  color:var(--gray);
+  margin-bottom:16px;
+  line-height:1.6;
+}
+
+.compare .cmp-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  margin-bottom:16px;
+}
+
+.compare .cmp-card{
+  border:1px solid var(--black);
+  padding:16px;
+  background:var(--white);
+}
+
+.compare .cmp-card h5{
+  font-size:13px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  margin-bottom:6px;
+}
+
+.compare .cmp-card p{
+  font-size:13px;
+  color:var(--black);
+  margin-bottom:8px;
+  line-height:1.5;
+}
+
+.compare .cmp-card ul{
+  list-style:none;
+  font-size:12px;
+  color:var(--gray);
+}
+
+.compare .cmp-card li{
+  padding:2px 0;
+}
+
+.compare .cmp-card li::before{
+  content:"— ";
+  color:var(--red);
+  font-weight:900;
+}
+
+.compare .cmp-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+}
+
+.compare-frame{
+  width:100%;
+  height:520px;
+  border:2px solid var(--black);
+  background:var(--black);
+  margin-top:16px;
+}
+
+footer{
+  border-top:2px solid var(--black);
+  padding:32px 0;
+  margin-top:48px;
+  font-size:12px;
+  color:var(--gray);
+}
+
+@media(max-width:900px){
+  :root{--margin:24px;}
+
+  .grid,
+  .controls,
+  .compare .cmp-grid{
+    grid-template-columns:1fr;
+  }
+
+  .stats{
+    grid-template-columns:1fr;
+  }
+}
 </style>
 </head>
+
 <body>
 <div class="container">
+
 <header>
-<div class="logo">XAge</div>
-<div class="tagline">Pediatric hand X-ray landmark detection. A deep-learning model that automatically identifies the hand and 17 anatomical reference points to support standardized analysis for automated bone-age estimation.</div>
+  <div class="logo">XAge</div>
+  <div class="tagline">
+    Pediatric hand X-ray landmark detection. A deep-learning model that detects
+    one hand and localizes 17 anatomical reference points to support standardized
+    analysis for future automated bone-age estimation.
+  </div>
 </header>
+
 <div class="grid">
+
 <aside>
-<h4>Input Mode</h4>
-<div class="modes">
-<button class="mode-btn active" data-mode="image">Image</button>
-<button class="mode-btn" data-mode="video">Video</button>
-<button class="mode-btn" data-mode="camera">Live Camera</button>
-</div>
-<h4>Model Notes</h4>
-<div class="notes">YOLOv8 keypoint / detection model trained to localise the hand and 17 anatomical landmarks on pediatric hand X-rays. Detections are drawn on the input; the landmark table lists each keypoint with confidence.</div>
-<h4 style="margin-top:24px;">Landmark Reference (17)</h4>
-<div class="notes" id="landmarkRef"></div>
+  <h4>Input Mode</h4>
+
+  <div class="modes">
+    <button class="mode-btn active" data-mode="image">Image</button>
+    <button class="mode-btn" data-mode="video">Video</button>
+    <button class="mode-btn" data-mode="camera">Live Camera</button>
+  </div>
+
+  <h4>Model Notes</h4>
+
+  <div class="notes">
+    YOLO26s-Pose model trained on pediatric hand radiographs.
+    It predicts <strong>one hand bounding box</strong> and
+    <strong>17 anatomical landmarks</strong>. The landmarks are not
+    individual object classes and do not receive separate boxes.
+  </div>
+
+  <h4 style="margin-top:24px;">Landmark Reference (17)</h4>
+
+  <div class="notes" id="landmarkRef"></div>
 </aside>
+
 <main>
+
 <section id="imagePane">
-<div id="dropZone" class="drop-zone"><strong>Click or drag</strong> a pediatric hand X-ray image here</div>
-<input id="fileInput" type="file" class="hide" accept="image/*">
+  <div id="dropZone" class="drop-zone">
+    <strong>Click or drag</strong> a pediatric hand X-ray image here
+  </div>
+
+  <input
+    id="fileInput"
+    type="file"
+    class="hide"
+    accept="image/*"
+  >
 </section>
+
 <section id="videoPane" class="hide">
-<div id="videoDrop" class="drop-zone"><strong>Click or drag</strong> a video file here</div>
-<input id="videoInput" type="file" class="hide" accept="video/*">
-<div class="cam-btns"><button id="playVid" class="btn primary" disabled>Play</button><button id="pauseVid" class="btn" disabled>Pause</button></div>
+  <div id="videoDrop" class="drop-zone">
+    <strong>Click or drag</strong> a video file here
+  </div>
+
+  <input
+    id="videoInput"
+    type="file"
+    class="hide"
+    accept="video/*"
+  >
+
+  <div class="cam-btns">
+    <button id="playVid" class="btn primary" disabled>Play</button>
+    <button id="pauseVid" class="btn" disabled>Pause</button>
+  </div>
 </section>
+
 <section id="camPane" class="hide">
-<div class="cam-btns"><button id="startCam" class="btn primary">Start Camera</button><button id="stopCam" class="btn" disabled>Stop</button></div>
+  <div class="cam-btns">
+    <button id="startCam" class="btn primary">Start Camera</button>
+    <button id="stopCam" class="btn" disabled>Stop</button>
+  </div>
 </section>
+
 <div class="controls">
-<div class="control"><label>Confidence: <span id="confVal">0.25</span></label><input id="confSlider" type="range" min="0.05" max="0.95" step="0.05" value="0.25"></div>
-<div class="control"><label>IoU (NMS): <span id="iouVal">0.45</span></label><input id="iouSlider" type="range" min="0.1" max="0.9" step="0.05" value="0.45"></div>
+  <div class="control">
+    <label>
+      Hand confidence:
+      <span id="confVal">0.25</span>
+    </label>
+
+    <input
+      id="confSlider"
+      type="range"
+      min="0.05"
+      max="0.95"
+      step="0.05"
+      value="0.25"
+    >
+  </div>
+
+  <div class="control">
+    <label>
+      IoU (NMS):
+      <span id="iouVal">0.45</span>
+    </label>
+
+    <input
+      id="iouSlider"
+      type="range"
+      min="0.10"
+      max="0.90"
+      step="0.05"
+      value="0.45"
+    >
+  </div>
 </div>
-<div class="status"><span id="dot" class="status-dot busy"></span><span id="statusText">Initializing...</span></div>
-<div id="progressWrap" class="progress hide"><div id="progressBar" class="progress-bar"></div></div>
-<div class="canvas-wrap"><canvas id="canvas" width="640" height="360"></canvas><video id="video" playsinline muted></video></div>
+
+<div class="status">
+  <span id="dot" class="status-dot busy"></span>
+  <span id="statusText">Initializing...</span>
+</div>
+
+<div id="progressWrap" class="progress hide">
+  <div id="progressBar" class="progress-bar"></div>
+</div>
+
+<div class="canvas-wrap">
+  <canvas id="canvas" width="640" height="360"></canvas>
+  <video id="video" playsinline muted></video>
+</div>
+
 <div class="stats">
-<div class="stat"><div id="statNotes" class="stat-v">0</div><div class="stat-k">Landmarks Detected</div></div>
-<div class="stat"><div id="statConf" class="stat-v">—</div><div class="stat-k">Max Confidence</div></div>
-<div class="stat"><div id="statMs" class="stat-v">—</div><div class="stat-k">Inference (ms)</div></div>
+  <div class="stat">
+    <div id="statNotes" class="stat-v">0</div>
+    <div class="stat-k">Visible Landmarks</div>
+  </div>
+
+  <div class="stat">
+    <div id="statConf" class="stat-v">—</div>
+    <div class="stat-k">Hand Confidence</div>
+  </div>
+
+  <div class="stat">
+    <div id="statMs" class="stat-v">—</div>
+    <div class="stat-k">Inference (ms)</div>
+  </div>
 </div>
+
 <div id="detList" class="detlist"></div>
+
 </main>
 </div>
 
 <section class="compare" id="compareSection">
-<h3>Comparison · MediaPipe 3D Hand Pose</h3>
-<p>Before testing XAge, compare its X-ray-based skeletal landmark detection with Google MediaPipe's live RGB 3D hand-pose demo. Both approaches localise anatomical points on the hand, but they target very different inputs, coordinate spaces, and clinical vs. interaction use cases.</p>
-<div class="cmp-grid">
-<div class="cmp-card">
-<h5>XAge (this app)</h5>
-<p>Radiograph-based landmark detector for pediatric bone-age analysis.</p>
-<ul>
-<li>Input: pediatric hand X-ray (grayscale radiograph)</li>
-<li>Output: hand bounding box + 17 skeletal / epiphyseal landmarks</li>
-<li>Backbone: YOLOv8 exported to ONNX</li>
-<li>Runtime: onnxruntime-web (WASM) in-browser</li>
-<li>Use case: research-only, standardized bone-age assessment</li>
-</ul>
-</div>
-<div class="cmp-card">
-<h5>MediaPipe Hands (3D)</h5>
-<p>Real-time RGB hand-pose regression by Google (TensorFlow.js).</p>
-<ul>
-<li>Input: RGB webcam / photo of a real hand</li>
-<li>Output: 21 3D keypoints (x, y, z) per hand, world coordinates</li>
-<li>Model: BlazePalm detector + hand-landmark regressor</li>
-<li>Runtime: TensorFlow.js (WebGL / WASM)</li>
-<li>Use case: gesture UI, AR, sign language, interaction</li>
-</ul>
-</div>
-</div>
-<div class="cmp-actions">
-<a class="btn primary" href="https://storage.googleapis.com/tfjs-models/demos/hand-pose-detection/index.html?model=mediapipe_hands" target="_blank" rel="noopener">Open MediaPipe 3D Demo</a>
-<button class="btn" id="toggleMediapipeEmbed">Toggle Embedded Demo</button>
-<a class="btn" href="https://blog.tensorflow.org/2021/11/3D-handpose.html" target="_blank" rel="noopener">Read TF Blog Post</a>
-</div>
-<iframe id="mediapipeFrame" class="compare-frame hide" src="" title="MediaPipe 3D Hand Pose Demo" allow="camera; microphone; autoplay" referrerpolicy="no-referrer-when-downgrade"></iframe>
-<p style="margin-top:12px;font-size:12px;color:var(--gray);">Note: the embedded MediaPipe demo requests webcam access and is hosted by Google (storage.googleapis.com). Some browsers block camera access inside cross-origin iframes — if the embedded view is blank or camera is denied, click <em>Open MediaPipe 3D Demo</em> to launch it in its own tab.</p>
+  <h3>Comparison · MediaPipe 3D Hand Pose</h3>
+
+  <p>
+    XAge analyzes pediatric hand X-rays and predicts a 2D hand box plus 17
+    custom radiographic landmarks. MediaPipe analyzes normal RGB hand images
+    and predicts 21 general-purpose 3D hand landmarks. The systems have
+    different input types, landmark definitions, and intended use cases.
+  </p>
+
+  <div class="cmp-grid">
+    <div class="cmp-card">
+      <h5>XAge (this app)</h5>
+      <p>Radiograph-based landmark detector for pediatric bone-age research.</p>
+      <ul>
+        <li>Input: pediatric hand X-ray</li>
+        <li>Output: one hand box + 17 radiographic landmarks</li>
+        <li>Backbone: YOLO26s-Pose exported to ONNX</li>
+        <li>Runtime: ONNX Runtime Web</li>
+        <li>Use case: research-only anatomical standardization</li>
+      </ul>
+    </div>
+
+    <div class="cmp-card">
+      <h5>MediaPipe Hands (3D)</h5>
+      <p>Real-time RGB hand-pose regression for interaction applications.</p>
+      <ul>
+        <li>Input: RGB webcam or normal hand photograph</li>
+        <li>Output: 21 three-dimensional hand points</li>
+        <li>Model: hand detector + landmark regressor</li>
+        <li>Runtime: TensorFlow.js / WebGL / WASM</li>
+        <li>Use case: gestures, AR, sign language, interaction</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="cmp-actions">
+    <a
+      class="btn primary"
+      href="https://storage.googleapis.com/tfjs-models/demos/hand-pose-detection/index.html?model=mediapipe_hands"
+      target="_blank"
+      rel="noopener"
+    >
+      Open MediaPipe 3D Demo
+    </a>
+
+    <button class="btn" id="toggleMediapipeEmbed">
+      Toggle Embedded Demo
+    </button>
+
+    <a
+      class="btn"
+      href="https://blog.tensorflow.org/2021/11/3D-handpose.html"
+      target="_blank"
+      rel="noopener"
+    >
+      Read TF Blog Post
+    </a>
+  </div>
+
+  <iframe
+    id="mediapipeFrame"
+    class="compare-frame hide"
+    src=""
+    title="MediaPipe 3D Hand Pose Demo"
+    allow="camera; microphone; autoplay"
+    referrerpolicy="no-referrer-when-downgrade"
+  ></iframe>
+
+  <p style="margin-top:12px;font-size:12px;color:var(--gray);">
+    Note: MediaPipe uses 21 generic RGB-hand landmarks. XAge uses 17 custom
+    radiographic landmarks from hand X-rays, so the two keypoint sets should
+    not be interpreted as equivalent.
+  </p>
 </section>
 
-<div class="disclaimer"><strong>Research and educational use only.</strong> XAge is a research prototype for pediatric hand-radiograph landmark localisation. It is not a certified medical device and must never be used for clinical diagnosis, treatment, or bone-age reporting. Always defer to a qualified radiologist and validated tools for any clinical decision.</div>
-<footer>XAge · Pediatric Hand Landmark Detection · Derrick Mirindi · Frederic Mirindi</footer>
+<div class="disclaimer">
+  <strong>Research and educational use only.</strong>
+  XAge is a research prototype for pediatric hand-radiograph landmark
+  localization. It is not a certified medical device and must never be used
+  for clinical diagnosis, treatment, or bone-age reporting.
 </div>
+
+<footer>
+  XAge · Pediatric Hand Landmark Detection · Derrick Mirindi · Frederic Mirindi
+</footer>
+
+</div>
+
 <script>
 (function(){
-var $=function(id){return document.getElementById(id);};
-var canvas=$('canvas'),ctx=canvas.getContext('2d'),video=$('video');
-var session=null,mode='image',stream=null,running=false,conf=0.25,iou=0.45,rafId=null,lastImg=null,vidRunning=false,vidRaf=null;
-var inputIsFp16=false;
-var MODEL={path:'./best.onnx',inputSize:640,
-classes:['hand','distal_phalanx_1','distal_phalanx_2','distal_phalanx_3','distal_phalanx_4','distal_phalanx_5','middle_phalanx_2','middle_phalanx_3','middle_phalanx_4','middle_phalanx_5','proximal_phalanx_1','proximal_phalanx_2','proximal_phalanx_3','proximal_phalanx_4','proximal_phalanx_5','metacarpal_1','carpal_region','radius_ulna'],
-colors:['#C8102E','#FF6A00','#FFC400','#00843D','#0072CE','#B10DC9','#FF4136','#FF851B','#2ECC40','#39CCCC','#7FDBFF','#001F3F','#F012BE','#85144B','#3D9970','#AAAAAA','#111111','#8A2BE2']};
-var CACHE_NAME='xage-model-v1',CACHE_KEY='best-onnx-v1';
-function clsName(i){return MODEL.classes[i]||('class '+i);}
-function clsColor(i){return MODEL.colors[i]||'#C8102E';}
-function setStatus(txt,cls){$('statusText').textContent=txt;$('dot').className='status-dot '+(cls||'');}
-function setProgress(pct){var w=$('progressWrap'),b=$('progressBar');if(pct===null){w.classList.add('hide');}else{w.classList.remove('hide');b.style.width=pct+'%';}}
-function f32tof16(val){var f=new Float32Array(1);f[0]=val;var i=new Int32Array(f.buffer)[0];var s=(i>>16)&0x8000;var e=((i>>23)&0xff)-127+15;var m=i&0x7fffff;if(e<=0){if(e<-10)return s;m=(m|0x800000)>>(1-e);return s|(m>>13);}if(e>=31)return s|0x7c00;return s|(e<<10)|(m>>13);}
-async function getCachedModel(){if(!('indexedDB' in window))return null;try{var db=await new Promise(function(res,rej){var r=indexedDB.open(CACHE_NAME,1);r.onupgradeneeded=function(){r.result.createObjectStore('models');};r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});var tx=db.transaction('models','readonly');var store=tx.objectStore('models');var data=await new Promise(function(res,rej){var r=store.get(CACHE_KEY);r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});db.close();return data?data.buffer:null;}catch(e){console.warn('Cache read:',e);return null;}}
-async function setCachedModel(buffer){if(!('indexedDB' in window))return;try{var db=await new Promise(function(res,rej){var r=indexedDB.open(CACHE_NAME,1);r.onupgradeneeded=function(){r.result.createObjectStore('models');};r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});var tx=db.transaction('models','readwrite');tx.objectStore('models').put({buffer:buffer},CACHE_KEY);await new Promise(function(res,rej){tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});db.close();}catch(e){console.warn('Cache write:',e);}}
-async function downloadModel(url){var resp=await fetch(url);if(!resp.ok)throw new Error('Model download failed ('+resp.status+') for '+url+'. Ensure best.onnx is uploaded to the repo root.');var total=+resp.headers.get('content-length')||0;var reader=resp.body.getReader();var received=0;var chunks=[];while(true){var r=await reader.read();if(r.done)break;chunks.push(r.value);received+=r.value.length;if(total>0)setProgress(Math.round(received/total*100));}return await new Blob(chunks).arrayBuffer();}
-async function loadModel(){try{if(typeof ort==='undefined'){setStatus('ONNX Runtime failed to load (check network/CDN).','err');return;}ort.env.wasm.numThreads=1;setStatus('Checking cache...','busy');var buffer=null;try{buffer=await getCachedModel();}catch(ce){console.warn('Cache read failed:',ce);buffer=null;}if(buffer){setStatus('Loading from cache...','busy');}else{setStatus('Downloading model...','busy');setProgress(0);buffer=await downloadModel(MODEL.path);setProgress(null);setStatus('Caching model...','busy');await setCachedModel(buffer);}setStatus('Initializing session...','busy');session=await ort.InferenceSession.create(buffer,{executionProviders:['wasm'],graphOptimizationLevel:'all'});try{var meta=session.inputMetadata&&session.inputMetadata[0];var t=meta&&(meta.type||meta.dataType||'');inputIsFp16=/float16|fp16/i.test(String(t));}catch(me){inputIsFp16=false;}try{var nc=MODEL.classes.length;var outMeta=session.outputMetadata&&session.outputMetadata[0];var dims=outMeta&&(outMeta.shape||outMeta.dims);if(dims&&dims.length>=2){var chan=Number(dims[1]);if(!isNaN(chan)&&chan>4){nc=chan-4;}}console.log('Model classes assumed:',nc);}catch(oe){}setStatus('Ready — select an input','on');}catch(e){var m=String(e&&e.message||e);var friendly='Error: '+m;if(/no such file|404|failed to fetch|download failed/i.test(m)){friendly='Model file not found. Ensure best.onnx is uploaded to the repository root.';}else if(/float16|fp16|does not match expected type/i.test(m)){friendly='Model type mismatch. Try re-exporting best.onnx.';}setStatus(friendly,'err');console.error(e);}}
-function preprocess(source,sw,sh){var S=MODEL.inputSize;var scale=Math.min(S/sw,S/sh);var nw=Math.round(sw*scale),nh=Math.round(sh*scale);var padX=Math.floor((S-nw)/2),padY=Math.floor((S-nh)/2);var off=document.createElement('canvas');off.width=S;off.height=S;var octx=off.getContext('2d');octx.fillStyle='#727272';octx.fillRect(0,0,S,S);octx.drawImage(source,0,0,sw,sh,padX,padY,nw,nh);var img=octx.getImageData(0,0,S,S).data;var area=S*S;var f=new Float32Array(area*3);for(var i=0;i<area;i++){f[i]=img[i*4]/255;f[area+i]=img[i*4+1]/255;f[area*2+i]=img[i*4+2]/255;}var tensor;if(inputIsFp16){var u=new Uint16Array(area*3);for(var k=0;k<f.length;k++){u[k]=f32tof16(f[k]);}tensor=new ort.Tensor('float16',u,[1,3,S,S]);}else{tensor=new ort.Tensor('float32',f,[1,3,S,S]);}return{tensor:tensor,scale:scale,padX:padX,padY:padY};}
-function iouCalc(a,b){var x1=Math.max(a[0],b[0]),y1=Math.max(a[1],b[1]),x2=Math.min(a[2],b[2]),y2=Math.min(a[3],b[3]);var w=Math.max(0,x2-x1),h=Math.max(0,y2-y1);var inter=w*h;var areaA=(a[2]-a[0])*(a[3]-a[1]),areaB=(b[2]-b[0])*(b[3]-b[1]);return inter/(areaA+areaB-inter+1e-9);}
-function nms(boxes){boxes.sort(function(a,b){return b.score-a.score;});var keep=[];for(var i=0;i<boxes.length;i++){var ok=true;for(var j=0;j<keep.length;j++){if(keep[j].cls===boxes[i].cls&&iouCalc(boxes[i].box,keep[j].box)>iou){ok=false;break;}}if(ok)keep.push(boxes[i]);}return keep;}
-function toF32(arr){if(arr instanceof Float32Array)return arr;var out=new Float32Array(arr.length);for(var i=0;i<arr.length;i++){out[i]=arr[i];}return out;}
-function postprocess(output,pre){var dims=output.dims;var data=toF32(output.data);var num=dims[2];var nc=dims[1]-4;if(nc<1)nc=MODEL.classes.length;var boxes=[];for(var i=0;i<num;i++){var best=0,bestc=0;for(var c=0;c<nc;c++){var v=data[(4+c)*num+i];if(v>best){best=v;bestc=c;}}if(best<conf)continue;var cx=data[0*num+i],cy=data[1*num+i],w=data[2*num+i],h=data[3*num+i];var x1=(cx-w/2-pre.padX)/pre.scale;var y1=(cy-h/2-pre.padY)/pre.scale;var x2=(cx+w/2-pre.padX)/pre.scale;var y2=(cy+h/2-pre.padY)/pre.scale;boxes.push({box:[x1,y1,x2,y2],score:best,cls:bestc});}return nms(boxes);}
-function draw(source,sw,sh,dets){canvas.width=sw;canvas.height=sh;ctx.drawImage(source,0,0,sw,sh);ctx.lineWidth=Math.max(2,sw/300);ctx.font='bold '+Math.max(14,Math.round(sw/40))+'px Helvetica,Arial,sans-serif';(dets||[]).forEach(function(d){var color=clsColor(d.cls);var x=d.box[0],y=d.box[1],w=d.box[2]-d.box[0],h=d.box[3]-d.box[1];ctx.strokeStyle=color;ctx.strokeRect(x,y,w,h);var cx=x+w/2,cy=y+h/2;ctx.fillStyle=color;ctx.beginPath();ctx.arc(cx,cy,Math.max(3,sw/220),0,Math.PI*2);ctx.fill();var label=clsName(d.cls)+' '+(d.score*100).toFixed(0)+'%';var tw=ctx.measureText(label).width;var th=Math.max(16,Math.round(sw/32));ctx.fillStyle=color;ctx.fillRect(x,y-th,tw+10,th);ctx.fillStyle='#fff';ctx.fillText(label,x+5,y-5);});}
-function updateStats(dets,ms){var maxc=0;(dets||[]).forEach(function(d){if(d.score>maxc)maxc=d.score;});$('statNotes').textContent=(dets||[]).length;$('statConf').textContent=maxc?(maxc*100).toFixed(1)+'%':'—';$('statMs').textContent=ms?Math.round(ms):'—';var list=$('detList');list.innerHTML='';(dets||[]).forEach(function(d){var row=document.createElement('div');row.className='det-row';var badge=document.createElement('span');badge.className='det-badge';badge.textContent=clsName(d.cls);badge.style.background=clsColor(d.cls);var sc=document.createElement('span');sc.textContent=(d.score*100).toFixed(1)+'%';row.appendChild(badge);row.appendChild(sc);list.appendChild(row);});}
-async function runInference(source,sw,sh){if(!session){setStatus('Model not ready yet','busy');return;}try{var pre=preprocess(source,sw,sh);var t0=performance.now();var feeds={};feeds[session.inputNames[0]]=pre.tensor;var out=await session.run(feeds);var ms=performance.now()-t0;var output=out[session.outputNames[0]];var dets=postprocess(output,pre);draw(source,sw,sh,dets);updateStats(dets,ms);return dets;}catch(e){setStatus('Inference error: '+String(e&&e.message||e),'err');console.error(e);}}
-function handleFile(file){if(!file)return;var img=new Image();img.onload=function(){lastImg=img;runInference(img,img.naturalWidth,img.naturalHeight);};img.onerror=function(){setStatus('Could not load image','err');};img.src=URL.createObjectURL(file);}
-function handleVideoFile(file){if(!file)return;stopVideo();stopCamera();video.srcObject=null;video.src=URL.createObjectURL(file);video.loop=false;video.muted=true;video.onloadeddata=function(){$('playVid').disabled=false;$('pauseVid').disabled=false;setStatus('Video loaded — press Play','on');draw(video,video.videoWidth,video.videoHeight,[]);};video.onended=function(){stopVideo();setStatus('Video ended','on');};video.onerror=function(){setStatus('Could not load video','err');};}
-async function vidLoop(){if(!vidRunning)return;if(video.readyState>=2&&!video.paused&&!video.ended){await runInference(video,video.videoWidth,video.videoHeight);}vidRaf=requestAnimationFrame(vidLoop);}
-async function playVideo(){if(!video.src)return;try{await video.play();vidRunning=true;setStatus('Video detection running','on');vidLoop();}catch(e){setStatus('Could not play video','err');console.error(e);}}
-function stopVideo(){vidRunning=false;if(vidRaf)cancelAnimationFrame(vidRaf);if(video&&video.src&&!video.paused){try{video.pause();}catch(e){}}}
-async function camLoop(){if(!running)return;if(video.readyState>=2){await runInference(video,video.videoWidth,video.videoHeight);}rafId=requestAnimationFrame(camLoop);}
-async function startCamera(){try{stopVideo();stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});video.srcObject=stream;await video.play();running=true;$('startCam').disabled=true;$('stopCam').disabled=false;setStatus('Live detection running','on');camLoop();}catch(e){setStatus('Camera access denied or unavailable','err');console.error(e);}}
-function stopCamera(){running=false;if(rafId)cancelAnimationFrame(rafId);if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}$('startCam').disabled=false;$('stopCam').disabled=true;}
-function setMode(m){mode=m;document.querySelectorAll('.mode-btn').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-mode')===m);});$('imagePane').classList.add('hide');$('videoPane').classList.add('hide');$('camPane').classList.add('hide');if(m==='image'){$('imagePane').classList.remove('hide');stopCamera();stopVideo();}else if(m==='video'){$('videoPane').classList.remove('hide');stopCamera();}else{$('camPane').classList.remove('hide');stopVideo();}}
-function renderLandmarkRef(){var ref=$('landmarkRef');if(!ref)return;var html='<ol style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6;">';for(var i=0;i<MODEL.classes.length;i++){html+='<li><span style="display:inline-block;width:10px;height:10px;background:'+clsColor(i)+';margin-right:6px;vertical-align:middle;"></span>'+MODEL.classes[i]+'</li>';}html+='</ol>';ref.innerHTML=html;}
-function wireMediapipeEmbed(){var btn=$('toggleMediapipeEmbed');var frame=$('mediapipeFrame');var url='https://storage.googleapis.com/tfjs-models/demos/hand-pose-detection/index.html?model=mediapipe_hands';btn.addEventListener('click',function(){if(frame.classList.contains('hide')){frame.src=url;frame.classList.remove('hide');btn.textContent='Hide Embedded Demo';}else{frame.classList.add('hide');frame.src='';btn.textContent='Toggle Embedded Demo';}});}
-function wire(){var dz=$('dropZone'),fi=$('fileInput');dz.addEventListener('click',function(){fi.click();});fi.addEventListener('change',function(e){handleFile(e.target.files[0]);});dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag');});dz.addEventListener('dragleave',function(){dz.classList.remove('drag');});dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});var vd=$('videoDrop'),vi=$('videoInput');vd.addEventListener('click',function(){vi.click();});vi.addEventListener('change',function(e){handleVideoFile(e.target.files[0]);});vd.addEventListener('dragover',function(e){e.preventDefault();vd.classList.add('drag');});vd.addEventListener('dragleave',function(){vd.classList.remove('drag');});vd.addEventListener('drop',function(e){e.preventDefault();vd.classList.remove('drag');if(e.dataTransfer.files.length)handleVideoFile(e.dataTransfer.files[0]);});$('playVid').addEventListener('click',playVideo);$('pauseVid').addEventListener('click',function(){stopVideo();setStatus('Video paused','on');});$('confSlider').addEventListener('input',function(e){conf=parseFloat(e.target.value);$('confVal').textContent=conf.toFixed(2);if(mode==='image'&&lastImg)runInference(lastImg,lastImg.naturalWidth,lastImg.naturalHeight);});$('iouSlider').addEventListener('input',function(e){iou=parseFloat(e.target.value);$('iouVal').textContent=iou.toFixed(2);if(mode==='image'&&lastImg)runInference(lastImg,lastImg.naturalWidth,lastImg.naturalHeight);});document.querySelectorAll('.mode-btn').forEach(function(b){b.addEventListener('click',function(){setMode(b.getAttribute('data-mode'));});});$('startCam').addEventListener('click',startCamera);$('stopCam').addEventListener('click',function(){stopCamera();setStatus('Camera stopped','on');});wireMediapipeEmbed();renderLandmarkRef();}
-wire();
+
+"use strict";
+
+/* =========================================================
+   DOM and application state
+   ========================================================= */
+
+var $ = function(id){
+  return document.getElementById(id);
+};
+
+var canvas = $("canvas");
+var ctx = canvas.getContext("2d");
+var video = $("video");
+
+var session = null;
+var mode = "image";
+var stream = null;
+var running = false;
+var videoRunning = false;
+
+var conf = 0.25;
+var iouThreshold = 0.45;
+
+var cameraAnimationId = null;
+var videoAnimationId = null;
+var lastImage = null;
+
+var inputIsFp16 = false;
+
+/* =========================================================
+   Model configuration
+
+   IMPORTANT:
+   - classes has ONLY ONE detection class: hand.
+   - keypoints has 17 pose landmarks.
+   ========================================================= */
+
+var MODEL = {
+  path: "./best.onnx",
+  inputSize: 640,
+
+  classes: ["hand"],
+
+  landmarkNames: [
+    "Landmark 1",
+    "Landmark 2",
+    "Landmark 3",
+    "Landmark 4",
+    "Landmark 5",
+    "Landmark 6",
+    "Landmark 7",
+    "Landmark 8",
+    "Landmark 9",
+    "Landmark 10",
+    "Landmark 11",
+    "Landmark 12",
+    "Landmark 13",
+    "Landmark 14",
+    "Landmark 15",
+    "Landmark 16",
+    "Landmark 17"
+  ],
+
+  landmarkColors: [
+    "#FF0000",
+    "#FF6A00",
+    "#FFC400",
+    "#00A651",
+    "#00AEEF",
+    "#0066CC",
+    "#6A00F4",
+    "#C000C0",
+    "#FF1493",
+    "#8B4513",
+    "#008080",
+    "#1E90FF",
+    "#DC143C",
+    "#228B22",
+    "#FF8C00",
+    "#4B0082",
+    "#111111"
+  ],
+
+  handBoxColor: "#0066CC"
+};
+
+/*
+  Landmark skeleton edges.
+
+  IMPORTANT:
+  The RHPE dataset's exact anatomical graph is custom. This list is
+  intentionally a visual scaffold, not a claim that every connection is
+  an anatomical joint. Replace it later with the official RHPE landmark
+  connectivity specification if you obtain the original annotation schema.
+
+  Point indices are zero-based: 0 through 16.
+*/
+var SKELETON_EDGES = [
+  [0, 1], [1, 2],
+  [3, 4], [4, 5],
+  [6, 7], [7, 8],
+  [9, 10], [10, 11],
+  [12, 13], [13, 14],
+  [14, 15], [15, 16],
+
+  [2, 5], [5, 8], [8, 11], [11, 14],
+  [14, 16]
+];
+
+/* =========================================================
+   Small utility functions
+   ========================================================= */
+
+function className(index){
+  return MODEL.classes[index] || "hand";
+}
+
+function landmarkName(index){
+  return MODEL.landmarkNames[index] || ("Landmark " + (index + 1));
+}
+
+function landmarkColor(index){
+  return MODEL.landmarkColors[index % MODEL.landmarkColors.length];
+}
+
+function setStatus(text, type){
+  $("statusText").textContent = text;
+  $("dot").className = "status-dot " + (type || "");
+}
+
+function setProgress(percent){
+  var wrapper = $("progressWrap");
+  var bar = $("progressBar");
+
+  if(percent === null){
+    wrapper.classList.add("hide");
+    return;
+  }
+
+  wrapper.classList.remove("hide");
+  bar.style.width = percent + "%";
+}
+
+function clamp(value, minValue, maxValue){
+  return Math.max(minValue, Math.min(maxValue, value));
+}
+
+function f32ToF16(value){
+  var f32 = new Float32Array(1);
+  var i32 = new Int32Array(f32.buffer);
+
+  f32[0] = value;
+
+  var x = i32[0];
+  var sign = (x >> 16) & 0x8000;
+  var exponent = ((x >> 23) & 0xff) - 127 + 15;
+  var mantissa = x & 0x7fffff;
+
+  if(exponent <= 0){
+    if(exponent < -10){
+      return sign;
+    }
+
+    mantissa = (mantissa | 0x800000) >> (1 - exponent);
+    return sign | (mantissa >> 13);
+  }
+
+  if(exponent >= 31){
+    return sign | 0x7c00;
+  }
+
+  return sign | (exponent << 10) | (mantissa >> 13);
+}
+
+function toFloat32Array(array){
+  if(array instanceof Float32Array){
+    return array;
+  }
+
+  var output = new Float32Array(array.length);
+
+  for(var i = 0; i < array.length; i++){
+    output[i] = array[i];
+  }
+
+  return output;
+}
+
+/* =========================================================
+   IndexedDB model caching
+   ========================================================= */
+
+var CACHE_NAME = "xage-model-v2";
+var CACHE_KEY = "best-onnx-yolo26s-pose";
+
+async function getCachedModel(){
+  if(!("indexedDB" in window)){
+    return null;
+  }
+
+  try{
+    var db = await new Promise(function(resolve, reject){
+      var request = indexedDB.open(CACHE_NAME, 1);
+
+      request.onupgradeneeded = function(){
+        request.result.createObjectStore("models");
+      };
+
+      request.onsuccess = function(){
+        resolve(request.result);
+      };
+
+      request.onerror = function(){
+        reject(request.error);
+      };
+    });
+
+    var transaction = db.transaction("models", "readonly");
+    var store = transaction.objectStore("models");
+
+    var data = await new Promise(function(resolve, reject){
+      var request = store.get(CACHE_KEY);
+
+      request.onsuccess = function(){
+        resolve(request.result);
+      };
+
+      request.onerror = function(){
+        reject(request.error);
+      };
+    });
+
+    db.close();
+
+    return data ? data.buffer : null;
+
+  }catch(error){
+    console.warn("IndexedDB cache read failed:", error);
+    return null;
+  }
+}
+
+async function setCachedModel(buffer){
+  if(!("indexedDB" in window)){
+    return;
+  }
+
+  try{
+    var db = await new Promise(function(resolve, reject){
+      var request = indexedDB.open(CACHE_NAME, 1);
+
+      request.onupgradeneeded = function(){
+        request.result.createObjectStore("models");
+      };
+
+      request.onsuccess = function(){
+        resolve(request.result);
+      };
+
+      request.onerror = function(){
+        reject(request.error);
+      };
+    });
+
+    var transaction = db.transaction("models", "readwrite");
+    transaction.objectStore("models").put(
+      { buffer: buffer },
+      CACHE_KEY
+    );
+
+    await new Promise(function(resolve, reject){
+      transaction.oncomplete = function(){
+        resolve();
+      };
+
+      transaction.onerror = function(){
+        reject(transaction.error);
+      };
+    });
+
+    db.close();
+
+  }catch(error){
+    console.warn("IndexedDB cache write failed:", error);
+  }
+}
+
+async function downloadModel(url){
+  var response = await fetch(url);
+
+  if(!response.ok){
+    throw new Error(
+      "Model download failed (" +
+      response.status +
+      ") for " +
+      url +
+      ". Confirm that best.onnx is in the same folder as this HTML file."
+    );
+  }
+
+  var total = Number(response.headers.get("content-length")) || 0;
+  var reader = response.body.getReader();
+
+  var received = 0;
+  var chunks = [];
+
+  while(true){
+    var result = await reader.read();
+
+    if(result.done){
+      break;
+    }
+
+    chunks.push(result.value);
+    received += result.value.length;
+
+    if(total > 0){
+      setProgress(Math.round(received / total * 100));
+    }
+  }
+
+  return await new Blob(chunks).arrayBuffer();
+}
+
+/* =========================================================
+   ONNX model loading
+   ========================================================= */
+
+async function loadModel(){
+  try{
+    if(typeof ort === "undefined"){
+      setStatus(
+        "ONNX Runtime failed to load. Check internet/CDN availability.",
+        "err"
+      );
+      return;
+    }
+
+    ort.env.wasm.numThreads = 1;
+
+    setStatus("Checking model cache...", "busy");
+
+    var modelBuffer = await getCachedModel();
+
+    if(modelBuffer){
+      setStatus("Loading model from cache...", "busy");
+    }else{
+      setStatus("Downloading ONNX model...", "busy");
+      setProgress(0);
+
+      modelBuffer = await downloadModel(MODEL.path);
+
+      setProgress(null);
+      setStatus("Caching ONNX model...", "busy");
+
+      await setCachedModel(modelBuffer);
+    }
+
+    setStatus("Initializing ONNX session...", "busy");
+
+    session = await ort.InferenceSession.create(
+      modelBuffer,
+      {
+        executionProviders: ["wasm"],
+        graphOptimizationLevel: "all"
+      }
+    );
+
+    var inputMeta = session.inputMetadata[
+      session.inputNames[0]
+    ];
+
+    var inputType = String(
+      inputMeta.type || inputMeta.dataType || ""
+    );
+
+    inputIsFp16 = /float16|fp16/i.test(inputType);
+
+    console.log("ONNX input name:", session.inputNames[0]);
+    console.log("ONNX input metadata:", inputMeta);
+    console.log("ONNX output names:", session.outputNames);
+    console.log("ONNX output metadata:", session.outputMetadata);
+
+    setStatus("Ready — select an X-ray image.", "on");
+
+  }catch(error){
+    console.error(error);
+
+    setStatus(
+      "Model load error: " + String(error.message || error),
+      "err"
+    );
+  }
+}
+
+/* =========================================================
+   YOLO preprocessing
+   ========================================================= */
+
+function preprocess(source, sourceWidth, sourceHeight){
+  var inputSize = MODEL.inputSize;
+
+  var scale = Math.min(
+    inputSize / sourceWidth,
+    inputSize / sourceHeight
+  );
+
+  var resizedWidth = Math.round(sourceWidth * scale);
+  var resizedHeight = Math.round(sourceHeight * scale);
+
+  var padX = Math.floor((inputSize - resizedWidth) / 2);
+  var padY = Math.floor((inputSize - resizedHeight) / 2);
+
+  var offscreen = document.createElement("canvas");
+  offscreen.width = inputSize;
+  offscreen.height = inputSize;
+
+  var offctx = offscreen.getContext("2d");
+
+  /*
+    YOLO letterbox padding value approximately equals 114 / 255.
+  */
+  offctx.fillStyle = "rgb(114,114,114)";
+  offctx.fillRect(0, 0, inputSize, inputSize);
+
+  offctx.drawImage(
+    source,
+    0,
+    0,
+    sourceWidth,
+    sourceHeight,
+    padX,
+    padY,
+    resizedWidth,
+    resizedHeight
+  );
+
+  var imageData = offctx.getImageData(
+    0,
+    0,
+    inputSize,
+    inputSize
+  ).data;
+
+  var area = inputSize * inputSize;
+  var floatData = new Float32Array(area * 3);
+
+  for(var pixelIndex = 0; pixelIndex < area; pixelIndex++){
+    floatData[pixelIndex] = imageData[pixelIndex * 4] / 255.0;
+    floatData[area + pixelIndex] = imageData[pixelIndex * 4 + 1] / 255.0;
+    floatData[area * 2 + pixelIndex] = imageData[pixelIndex * 4 + 2] / 255.0;
+  }
+
+  var inputTensor;
+
+  if(inputIsFp16){
+    var fp16Data = new Uint16Array(area * 3);
+
+    for(var i = 0; i < floatData.length; i++){
+      fp16Data[i] = f32ToF16(floatData[i]);
+    }
+
+    inputTensor = new ort.Tensor(
+      "float16",
+      fp16Data,
+      [1, 3, inputSize, inputSize]
+    );
+
+  }else{
+    inputTensor = new ort.Tensor(
+      "float32",
+      floatData,
+      [1, 3, inputSize, inputSize]
+    );
+  }
+
+  return {
+    tensor: inputTensor,
+    scale: scale,
+    padX: padX,
+    padY: padY
+  };
+}
+
+/* =========================================================
+   One-class pose-model postprocessing
+
+   Expected common pose output layouts:
+   - [1, 56, N]  => channels first
+   - [1, N, 56]  => predictions first
+
+   56 values:
+   [cx, cy, w, h, hand_conf,
+    kpt1_x, kpt1_y, kpt1_conf,
+    ...
+    kpt17_x, kpt17_y, kpt17_conf]
+   ========================================================= */
+
+function parsePosePredictionRow(values, pre){
+  var numberOfKeypoints = 17;
+  var expectedLength = 5 + numberOfKeypoints * 3;
+
+  if(values.length < expectedLength){
+    return null;
+  }
+
+  var centerX = values[0];
+  var centerY = values[1];
+  var width = values[2];
+  var height = values[3];
+  var score = values[4];
+
+  if(!Number.isFinite(score) || score < conf){
+    return null;
+  }
+
+  var x1 = (centerX - width / 2 - pre.padX) / pre.scale;
+  var y1 = (centerY - height / 2 - pre.padY) / pre.scale;
+  var x2 = (centerX + width / 2 - pre.padX) / pre.scale;
+  var y2 = (centerY + height / 2 - pre.padY) / pre.scale;
+
+  var keypoints = [];
+
+  for(var keypointIndex = 0; keypointIndex < numberOfKeypoints; keypointIndex++){
+    var start = 5 + keypointIndex * 3;
+
+    var rawX = values[start];
+    var rawY = values[start + 1];
+    var keypointScore = values[start + 2];
+
+    var originalX = (rawX - pre.padX) / pre.scale;
+    var originalY = (rawY - pre.padY) / pre.scale;
+
+    keypoints.push({
+      x: originalX,
+      y: originalY,
+      score: Number.isFinite(keypointScore) ? keypointScore : 0
+    });
+  }
+
+  return {
+    box: [x1, y1, x2, y2],
+    score: score,
+    classId: 0,
+    keypoints: keypoints
+  };
+}
+
+function parseOutputChannelsFirst(data, channels, predictions, pre){
+  var detections = [];
+
+  for(var predictionIndex = 0; predictionIndex < predictions; predictionIndex++){
+    var values = new Float32Array(channels);
+
+    for(var channelIndex = 0; channelIndex < channels; channelIndex++){
+      values[channelIndex] = data[
+        channelIndex * predictions + predictionIndex
+      ];
+    }
+
+    var detection = parsePosePredictionRow(values, pre);
+
+    if(detection){
+      detections.push(detection);
+    }
+  }
+
+  return detections;
+}
+
+function parseOutputPredictionsFirst(data, predictions, channels, pre){
+  var detections = [];
+
+  for(var predictionIndex = 0; predictionIndex < predictions; predictionIndex++){
+    var start = predictionIndex * channels;
+
+    var values = data.slice(
+      start,
+      start + channels
+    );
+
+    var detection = parsePosePredictionRow(values, pre);
+
+    if(detection){
+      detections.push(detection);
+    }
+  }
+
+  return detections;
+}
+
+function boxIou(boxA, boxB){
+  var x1 = Math.max(boxA[0], boxB[0]);
+  var y1 = Math.max(boxA[1], boxB[1]);
+  var x2 = Math.min(boxA[2], boxB[2]);
+  var y2 = Math.min(boxA[3], boxB[3]);
+
+  var width = Math.max(0, x2 - x1);
+  var height = Math.max(0, y2 - y1);
+
+  var intersection = width * height;
+
+  var areaA = Math.max(0, boxA[2] - boxA[0]) *
+              Math.max(0, boxA[3] - boxA[1]);
+
+  var areaB = Math.max(0, boxB[2] - boxB[0]) *
+              Math.max(0, boxB[3] - boxB[1]);
+
+  return intersection / (areaA + areaB - intersection + 1e-9);
+}
+
+function nmsPose(detections){
+  detections.sort(function(a, b){
+    return b.score - a.score;
+  });
+
+  var kept = [];
+
+  for(var i = 0; i < detections.length; i++){
+    var shouldKeep = true;
+
+    for(var j = 0; j < kept.length; j++){
+      /*
+        All predictions represent the same class: hand.
+        Suppress duplicate hand boxes only.
+      */
+      if(boxIou(detections[i].box, kept[j].box) > iouThreshold){
+        shouldKeep = false;
+        break;
+      }
+    }
+
+    if(shouldKeep){
+      kept.push(detections[i]);
+    }
+  }
+
+  return kept;
+}
+
+function postprocessPose(output, pre){
+  var dims = output.dims;
+  var data = toFloat32Array(output.data);
+
+  if(!dims || dims.length !== 3){
+    throw new Error(
+      "Unexpected ONNX pose output shape: " + JSON.stringify(dims)
+    );
+  }
+
+  var dim1 = Number(dims[1]);
+  var dim2 = Number(dims[2]);
+
+  var expectedChannels = 56;
+  var rawDetections;
+
+  /*
+    Typical Ultralytics pose output is [1, 56, N].
+  */
+  if(dim1 >= expectedChannels && dim1 < dim2){
+    rawDetections = parseOutputChannelsFirst(
+      data,
+      dim1,
+      dim2,
+      pre
+    );
+
+  /*
+    Alternative ONNX layout: [1, N, 56].
+  */
+  }else if(dim2 >= expectedChannels && dim2 < dim1){
+    rawDetections = parseOutputPredictionsFirst(
+      data,
+      dim1,
+      dim2,
+      pre
+    );
+
+  /*
+    Fallback: assume whichever dimension is near 56 is channels.
+  */
+  }else if(dim1 === expectedChannels){
+    rawDetections = parseOutputChannelsFirst(
+      data,
+      dim1,
+      dim2,
+      pre
+    );
+
+  }else if(dim2 === expectedChannels){
+    rawDetections = parseOutputPredictionsFirst(
+      data,
+      dim1,
+      dim2,
+      pre
+    );
+
+  }else{
+    throw new Error(
+      "Cannot identify pose output layout. " +
+      "Expected 56 pose values per prediction, but received shape " +
+      JSON.stringify(dims) +
+      ". Check your ONNX export."
+    );
+  }
+
+  return nmsPose(rawDetections);
+}
+
+/* =========================================================
+   Drawing: one hand box + 17 landmarks
+   ========================================================= */
+
+function isVisibleKeypoint(keypoint){
+  return keypoint &&
+         Number.isFinite(keypoint.x) &&
+         Number.isFinite(keypoint.y) &&
+         Number.isFinite(keypoint.score) &&
+         keypoint.score >= 0.05;
+}
+
+function drawSkeleton(detection, imageWidth){
+  var points = detection.keypoints || [];
+
+  ctx.save();
+
+  ctx.lineWidth = Math.max(2, imageWidth / 400);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  SKELETON_EDGES.forEach(function(edge, edgeIndex){
+    var pointA = points[edge[0]];
+    var pointB = points[edge[1]];
+
+    if(!isVisibleKeypoint(pointA) || !isVisibleKeypoint(pointB)){
+      return;
+    }
+
+    /*
+      Multicolor connection scheme for visual distinction.
+    */
+    ctx.strokeStyle = MODEL.landmarkColors[
+      edgeIndex % MODEL.landmarkColors.length
+    ];
+
+    ctx.beginPath();
+    ctx.moveTo(pointA.x, pointA.y);
+    ctx.lineTo(pointB.x, pointB.y);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+function drawLandmarks(detection, imageWidth){
+  var points = detection.keypoints || [];
+  var pointRadius = Math.max(4, imageWidth / 210);
+  var labelFontSize = Math.max(11, Math.round(imageWidth / 52));
+
+  ctx.save();
+
+  ctx.font = "700 " + labelFontSize + "px Helvetica, Arial, sans-serif";
+  ctx.textBaseline = "middle";
+
+  points.forEach(function(point, index){
+    if(!isVisibleKeypoint(point)){
+      return;
+    }
+
+    var color = landmarkColor(index);
+
+    /*
+      Black outer ring improves contrast on a radiograph.
+    */
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, pointRadius + 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, pointRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    /*
+      Show the landmark index next to each point.
+    */
+    var label = String(index + 1);
+    var labelX = point.x + pointRadius + 4;
+    var labelY = point.y - pointRadius - 2;
+
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#FFF";
+    ctx.strokeText(label, labelX, labelY);
+
+    ctx.fillStyle = "#000";
+    ctx.fillText(label, labelX, labelY);
+  });
+
+  ctx.restore();
+}
+
+function drawHandBox(detection, imageWidth, imageHeight){
+  var box = detection.box;
+
+  var x1 = clamp(box[0], 0, imageWidth);
+  var y1 = clamp(box[1], 0, imageHeight);
+  var x2 = clamp(box[2], 0, imageWidth);
+  var y2 = clamp(box[3], 0, imageHeight);
+
+  var width = Math.max(1, x2 - x1);
+  var height = Math.max(1, y2 - y1);
+
+  var lineWidth = Math.max(2, imageWidth / 340);
+  var fontSize = Math.max(14, Math.round(imageWidth / 40));
+
+  ctx.save();
+
+  ctx.strokeStyle = MODEL.handBoxColor;
+  ctx.lineWidth = lineWidth;
+  ctx.strokeRect(x1, y1, width, height);
+
+  ctx.font = "700 " + fontSize + "px Helvetica, Arial, sans-serif";
+
+  var label = "hand " + detection.score.toFixed(2);
+  var textWidth = ctx.measureText(label).width;
+
+  var labelHeight = fontSize + 8;
+  var labelY = Math.max(0, y1 - labelHeight);
+
+  ctx.fillStyle = MODEL.handBoxColor;
+  ctx.fillRect(
+    x1,
+    labelY,
+    textWidth + 12,
+    labelHeight
+  );
+
+  ctx.fillStyle = "#FFF";
+  ctx.fillText(
+    label,
+    x1 + 6,
+    labelY + fontSize + 1
+  );
+
+  ctx.restore();
+}
+
+function draw(source, sourceWidth, sourceHeight, detections){
+  canvas.width = sourceWidth;
+  canvas.height = sourceHeight;
+
+  ctx.clearRect(0, 0, sourceWidth, sourceHeight);
+
+  ctx.drawImage(
+    source,
+    0,
+    0,
+    sourceWidth,
+    sourceHeight
+  );
+
+  /*
+    Each detection is ONE hand instance.
+    Draw one box around the hand, then 17 keypoints.
+  */
+  (detections || []).forEach(function(detection){
+    drawHandBox(detection, sourceWidth, sourceHeight);
+    drawSkeleton(detection, sourceWidth);
+    drawLandmarks(detection, sourceWidth);
+  });
+}
+
+/* =========================================================
+   Statistics and landmark table
+   ========================================================= */
+
+function updateStats(detections, inferenceMs){
+  var bestDetection = null;
+
+  (detections || []).forEach(function(detection){
+    if(!bestDetection || detection.score > bestDetection.score){
+      bestDetection = detection;
+    }
+  });
+
+  var visibleLandmarks = 0;
+  var handConfidence = null;
+
+  if(bestDetection){
+    handConfidence = bestDetection.score;
+
+    (bestDetection.keypoints || []).forEach(function(keypoint){
+      if(isVisibleKeypoint(keypoint)){
+        visibleLandmarks++;
+      }
+    });
+  }
+
+  $("statNotes").textContent = visibleLandmarks;
+  $("statConf").textContent = handConfidence !== null
+    ? (handConfidence * 100).toFixed(1) + "%"
+    : "—";
+
+  $("statMs").textContent = inferenceMs
+    ? Math.round(inferenceMs)
+    : "—";
+
+  var list = $("detList");
+  list.innerHTML = "";
+
+  if(!bestDetection){
+    var empty = document.createElement("div");
+    empty.className = "det-muted";
+    empty.textContent =
+      "No hand detected above the selected confidence threshold.";
+    list.appendChild(empty);
+    return;
+  }
+
+  var handRow = document.createElement("div");
+  handRow.className = "det-row";
+
+  var handBadge = document.createElement("span");
+  handBadge.className = "det-badge";
+  handBadge.style.background = MODEL.handBoxColor;
+  handBadge.textContent = "1 hand detected";
+
+  var handScore = document.createElement("span");
+  handScore.textContent =
+    "confidence: " + (bestDetection.score * 100).toFixed(1) + "%";
+
+  handRow.appendChild(handBadge);
+  handRow.appendChild(handScore);
+
+  list.appendChild(handRow);
+
+  (bestDetection.keypoints || []).forEach(function(keypoint, index){
+    var row = document.createElement("div");
+    row.className = "det-row";
+
+    var badge = document.createElement("span");
+    badge.className = "det-badge";
+    badge.style.background = landmarkColor(index);
+    badge.textContent = landmarkName(index);
+
+    var score = document.createElement("span");
+
+    if(isVisibleKeypoint(keypoint)){
+      score.textContent =
+        "visible · " + (keypoint.score * 100).toFixed(1) + "%";
+    }else{
+      score.textContent = "low confidence / not visible";
+      score.className = "det-muted";
+    }
+
+    row.appendChild(badge);
+    row.appendChild(score);
+
+    list.appendChild(row);
+  });
+}
+
+/* =========================================================
+   Main inference function
+   ========================================================= */
+
+async function runInference(source, sourceWidth, sourceHeight){
+  if(!session){
+    setStatus("Model is not ready yet.", "busy");
+    return;
+  }
+
+  if(!sourceWidth || !sourceHeight){
+    return;
+  }
+
+  try{
+    var pre = preprocess(
+      source,
+      sourceWidth,
+      sourceHeight
+    );
+
+    var startTime = performance.now();
+
+    var feeds = {};
+    feeds[session.inputNames[0]] = pre.tensor;
+
+    var outputMap = await session.run(feeds);
+
+    var inferenceMs = performance.now() - startTime;
+
+    var outputName = session.outputNames[0];
+    var outputTensor = outputMap[outputName];
+
+    var detections = postprocessPose(
+      outputTensor,
+      pre
+    );
+
+    draw(
+      source,
+      sourceWidth,
+      sourceHeight,
+      detections
+    );
+
+    updateStats(
+      detections,
+      inferenceMs
+    );
+
+    setStatus(
+      detections.length
+        ? "Hand and anatomical landmarks detected."
+        : "No hand detected. Try lowering hand confidence.",
+      "on"
+    );
+
+    return detections;
+
+  }catch(error){
+    console.error(error);
+
+    setStatus(
+      "Inference error: " + String(error.message || error),
+      "err"
+    );
+  }
+}
+
+/* =========================================================
+   Input handling
+   ========================================================= */
+
+function handleImageFile(file){
+  if(!file){
+    return;
+  }
+
+  var image = new Image();
+
+  image.onload = function(){
+    lastImage = image;
+
+    runInference(
+      image,
+      image.naturalWidth,
+      image.naturalHeight
+    );
+  };
+
+  image.onerror = function(){
+    setStatus("Could not load image.", "err");
+  };
+
+  image.src = URL.createObjectURL(file);
+}
+
+function stopVideo(){
+  videoRunning = false;
+
+  if(videoAnimationId){
+    cancelAnimationFrame(videoAnimationId);
+  }
+
+  if(video && video.src && !video.paused){
+    try{
+      video.pause();
+    }catch(error){}
+  }
+}
+
+function handleVideoFile(file){
+  if(!file){
+    return;
+  }
+
+  stopVideo();
+  stopCamera();
+
+  video.srcObject = null;
+  video.src = URL.createObjectURL(file);
+  video.loop = false;
+  video.muted = true;
+
+  video.onloadeddata = function(){
+    $("playVid").disabled = false;
+    $("pauseVid").disabled = false;
+
+    setStatus(
+      "Video loaded — press Play.",
+      "on"
+    );
+
+    draw(
+      video,
+      video.videoWidth,
+      video.videoHeight,
+      []
+    );
+  };
+
+  video.onended = function(){
+    stopVideo();
+    setStatus("Video ended.", "on");
+  };
+
+  video.onerror = function(){
+    setStatus("Could not load video.", "err");
+  };
+}
+
+async function videoLoop(){
+  if(!videoRunning){
+    return;
+  }
+
+  if(
+    video.readyState >= 2 &&
+    !video.paused &&
+    !video.ended
+  ){
+    await runInference(
+      video,
+      video.videoWidth,
+      video.videoHeight
+    );
+  }
+
+  videoAnimationId = requestAnimationFrame(videoLoop);
+}
+
+async function playVideo(){
+  if(!video.src){
+    return;
+  }
+
+  try{
+    await video.play();
+
+    videoRunning = true;
+
+    setStatus("Video landmark detection running.", "on");
+
+    videoLoop();
+
+  }catch(error){
+    console.error(error);
+    setStatus("Could not play video.", "err");
+  }
+}
+
+/* =========================================================
+   Live camera handling
+   ========================================================= */
+
+async function cameraLoop(){
+  if(!running){
+    return;
+  }
+
+  if(video.readyState >= 2){
+    await runInference(
+      video,
+      video.videoWidth,
+      video.videoHeight
+    );
+  }
+
+  cameraAnimationId = requestAnimationFrame(cameraLoop);
+}
+
+async function startCamera(){
+  try{
+    stopVideo();
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "environment"
+      }
+    });
+
+    video.srcObject = stream;
+
+    await video.play();
+
+    running = true;
+
+    $("startCam").disabled = true;
+    $("stopCam").disabled = false;
+
+    setStatus("Live landmark detection running.", "on");
+
+    cameraLoop();
+
+  }catch(error){
+    console.error(error);
+
+    setStatus(
+      "Camera access denied or unavailable.",
+      "err"
+    );
+  }
+}
+
+function stopCamera(){
+  running = false;
+
+  if(cameraAnimationId){
+    cancelAnimationFrame(cameraAnimationId);
+  }
+
+  if(stream){
+    stream.getTracks().forEach(function(track){
+      track.stop();
+    });
+
+    stream = null;
+  }
+
+  $("startCam").disabled = false;
+  $("stopCam").disabled = true;
+}
+
+/* =========================================================
+   Mode switching and UI
+   ========================================================= */
+
+function setMode(newMode){
+  mode = newMode;
+
+  document.querySelectorAll(".mode-btn").forEach(function(button){
+    button.classList.toggle(
+      "active",
+      button.getAttribute("data-mode") === newMode
+    );
+  });
+
+  $("imagePane").classList.add("hide");
+  $("videoPane").classList.add("hide");
+  $("camPane").classList.add("hide");
+
+  if(newMode === "image"){
+    $("imagePane").classList.remove("hide");
+    stopCamera();
+    stopVideo();
+
+  }else if(newMode === "video"){
+    $("videoPane").classList.remove("hide");
+    stopCamera();
+
+  }else{
+    $("camPane").classList.remove("hide");
+    stopVideo();
+  }
+}
+
+function renderLandmarkReference(){
+  var reference = $("landmarkRef");
+
+  if(!reference){
+    return;
+  }
+
+  var html =
+    '<ol style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.65;">';
+
+  for(var i = 0; i < MODEL.landmarkNames.length; i++){
+    html +=
+      '<li>' +
+      '<span style="' +
+      'display:inline-block;' +
+      'width:10px;' +
+      'height:10px;' +
+      'background:' + landmarkColor(i) + ';' +
+      'margin-right:6px;' +
+      'vertical-align:middle;' +
+      '"></span>' +
+      MODEL.landmarkNames[i] +
+      '</li>';
+  }
+
+  html += "</ol>";
+
+  reference.innerHTML = html;
+}
+
+function wireMediaPipeEmbed(){
+  var button = $("toggleMediapipeEmbed");
+  var frame = $("mediapipeFrame");
+
+  var url =
+    "https://storage.googleapis.com/tfjs-models/demos/" +
+    "hand-pose-detection/index.html?model=mediapipe_hands";
+
+  button.addEventListener("click", function(){
+    if(frame.classList.contains("hide")){
+      frame.src = url;
+      frame.classList.remove("hide");
+      button.textContent = "Hide Embedded Demo";
+    }else{
+      frame.classList.add("hide");
+      frame.src = "";
+      button.textContent = "Toggle Embedded Demo";
+    }
+  });
+}
+
+function wireEvents(){
+  var dropZone = $("dropZone");
+  var fileInput = $("fileInput");
+
+  dropZone.addEventListener("click", function(){
+    fileInput.click();
+  });
+
+  fileInput.addEventListener("change", function(event){
+    handleImageFile(event.target.files[0]);
+  });
+
+  dropZone.addEventListener("dragover", function(event){
+    event.preventDefault();
+    dropZone.classList.add("drag");
+  });
+
+  dropZone.addEventListener("dragleave", function(){
+    dropZone.classList.remove("drag");
+  });
+
+  dropZone.addEventListener("drop", function(event){
+    event.preventDefault();
+
+    dropZone.classList.remove("drag");
+
+    if(event.dataTransfer.files.length){
+      handleImageFile(event.dataTransfer.files[0]);
+    }
+  });
+
+  var videoDrop = $("videoDrop");
+  var videoInput = $("videoInput");
+
+  videoDrop.addEventListener("click", function(){
+    videoInput.click();
+  });
+
+  videoInput.addEventListener("change", function(event){
+    handleVideoFile(event.target.files[0]);
+  });
+
+  videoDrop.addEventListener("dragover", function(event){
+    event.preventDefault();
+    videoDrop.classList.add("drag");
+  });
+
+  videoDrop.addEventListener("dragleave", function(){
+    videoDrop.classList.remove("drag");
+  });
+
+  videoDrop.addEventListener("drop", function(event){
+    event.preventDefault();
+
+    videoDrop.classList.remove("drag");
+
+    if(event.dataTransfer.files.length){
+      handleVideoFile(event.dataTransfer.files[0]);
+    }
+  });
+
+  $("playVid").addEventListener("click", playVideo);
+
+  $("pauseVid").addEventListener("click", function(){
+    stopVideo();
+    setStatus("Video paused.", "on");
+  });
+
+  $("confSlider").addEventListener("input", function(event){
+    conf = parseFloat(event.target.value);
+
+    $("confVal").textContent = conf.toFixed(2);
+
+    if(mode === "image" && lastImage){
+      runInference(
+        lastImage,
+        lastImage.naturalWidth,
+        lastImage.naturalHeight
+      );
+    }
+  });
+
+  $("iouSlider").addEventListener("input", function(event){
+    iouThreshold = parseFloat(event.target.value);
+
+    $("iouVal").textContent = iouThreshold.toFixed(2);
+
+    if(mode === "image" && lastImage){
+      runInference(
+        lastImage,
+        lastImage.naturalWidth,
+        lastImage.naturalHeight
+      );
+    }
+  });
+
+  document.querySelectorAll(".mode-btn").forEach(function(button){
+    button.addEventListener("click", function(){
+      setMode(button.getAttribute("data-mode"));
+    });
+  });
+
+  $("startCam").addEventListener("click", startCamera);
+
+  $("stopCam").addEventListener("click", function(){
+    stopCamera();
+    setStatus("Camera stopped.", "on");
+  });
+
+  wireMediaPipeEmbed();
+  renderLandmarkReference();
+}
+
+/* =========================================================
+   Start application
+   ========================================================= */
+
+wireEvents();
 loadModel();
+
 })();
 </script>
+
 </body>
 </html>
