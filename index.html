@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>XAge · Pediatric Hand Landmark Detection</title>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+<script>if(typeof ort!=='undefined'){ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/';}</script>
 <style>
 :root{--maxw:1200px;--margin:48px;--lh:24px;--red:#C8102E;--gold:#FFC400;--black:#111;--white:#FFF;--gray:#666;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -49,8 +50,7 @@ video{display:none;}
 .detlist{border-top:2px solid var(--black);padding-top:12px;margin-bottom:24px;max-height:280px;overflow-y:auto;}
 .det-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #ddd;}
 .det-badge{background:var(--red);color:var(--white);padding:4px 8px;font-size:13px;font-weight:900;}
-.debug{border:1px dashed var(--gray);padding:12px;margin-bottom:24px;font-size:12px;color:var(--gray);font-family:'Courier New',monospace;white-space:pre-wrap;max-height:160px;overflow-y:auto;}
-.disclaimer{border-left:4px solid var(--red);padding-left:24px;margin:24px 0;color:var(--gray);font-size:14px;}
+.disclaimer{border-left:4px solid var(--red);padding-left:24px;margin:24px 0 24px;color:var(--gray);font-size:14px;}
 .disclaimer strong{color:var(--black);}
 .compare{border:2px solid var(--black);padding:24px;margin:24px 0 48px;background:#fafafa;}
 .compare h3{font-size:20px;font-weight:900;color:var(--red);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.02em;}
@@ -72,7 +72,7 @@ footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-siz
 <div class="container">
 <header>
 <div class="logo">XAge</div>
-<div class="tagline">Pediatric hand X-ray landmark detection. A deep-learning model that identifies one hand and 17 anatomical reference points to support standardized research workflows for future bone-age estimation.</div>
+<div class="tagline">Pediatric hand X-ray landmark detection. A deep-learning model that automatically identifies the hand and 17 anatomical reference points to support standardized analysis for automated bone-age estimation.</div>
 </header>
 <div class="grid">
 <aside>
@@ -83,7 +83,7 @@ footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-siz
 <button class="mode-btn" data-mode="camera">Live Camera</button>
 </div>
 <h4>Model Notes</h4>
-<div class="notes">YOLO26s-Pose detects exactly one hand and 17 anatomical landmarks per detected hand. The rectangle is one hand box only. The colored circles are landmarks, not separate boxes. There is no per-landmark class list — landmarks are numbered 1–17, not named object classes.</div>
+<div class="notes">YOLOv8 keypoint / detection model trained to localise the hand and 17 anatomical landmarks on pediatric hand X-rays. Detections are drawn on the input; the landmark table lists each keypoint with confidence.</div>
 <h4 style="margin-top:24px;">Landmark Reference (17)</h4>
 <div class="notes" id="landmarkRef"></div>
 </aside>
@@ -109,19 +109,39 @@ footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-siz
 <div class="canvas-wrap"><canvas id="canvas" width="640" height="360"></canvas><video id="video" playsinline muted></video></div>
 <div class="stats">
 <div class="stat"><div id="statNotes" class="stat-v">0</div><div class="stat-k">Landmarks Detected</div></div>
-<div class="stat"><div id="statConf" class="stat-v">—</div><div class="stat-k">Hand Confidence</div></div>
+<div class="stat"><div id="statConf" class="stat-v">—</div><div class="stat-k">Max Confidence</div></div>
 <div class="stat"><div id="statMs" class="stat-v">—</div><div class="stat-k">Inference (ms)</div></div>
 </div>
-<div id="debugBox" class="debug hide"></div>
 <div id="detList" class="detlist"></div>
 </main>
 </div>
+
 <section class="compare" id="compareSection">
 <h3>Comparison · MediaPipe 3D Hand Pose</h3>
-<p>XAge detects 17 custom 2D radiographic landmarks from pediatric hand X-rays. MediaPipe detects a different set of 21 general hand landmarks from RGB webcam images and estimates relative 3D pose. The systems have different inputs, landmark definitions, and uses.</p>
+<p>Before testing XAge, compare its X-ray-based skeletal landmark detection with Google MediaPipe's live RGB 3D hand-pose demo. Both approaches localise anatomical points on the hand, but they target very different inputs, coordinate spaces, and clinical vs. interaction use cases.</p>
 <div class="cmp-grid">
-<div class="cmp-card"><h5>XAge</h5><p>Radiograph-based hand localization and landmark detection for bone-age research workflows.</p><ul><li>Input: pediatric hand X-ray</li><li>Output: 1 hand box + 17 custom 2D landmarks</li><li>Runtime: ONNX Runtime Web</li><li>Use case: research-only anatomical standardization</li></ul></div>
-<div class="cmp-card"><h5>MediaPipe Hands</h5><p>Real-time RGB hand-pose estimation for gesture and interaction applications.</p><ul><li>Input: RGB webcam or photograph</li><li>Output: 21 general hand points with relative depth</li><li>Runtime: TensorFlow.js / WebGL / WASM</li><li>Use case: AR, gestures, sign language, interaction</li></ul></div>
+<div class="cmp-card">
+<h5>XAge (this app)</h5>
+<p>Radiograph-based landmark detector for pediatric bone-age analysis.</p>
+<ul>
+<li>Input: pediatric hand X-ray (grayscale radiograph)</li>
+<li>Output: hand bounding box + 17 skeletal / epiphyseal landmarks</li>
+<li>Backbone: YOLOv8 exported to ONNX</li>
+<li>Runtime: onnxruntime-web (WASM) in-browser</li>
+<li>Use case: research-only, standardized bone-age assessment</li>
+</ul>
+</div>
+<div class="cmp-card">
+<h5>MediaPipe Hands (3D)</h5>
+<p>Real-time RGB hand-pose regression by Google (TensorFlow.js).</p>
+<ul>
+<li>Input: RGB webcam / photo of a real hand</li>
+<li>Output: 21 3D keypoints (x, y, z) per hand, world coordinates</li>
+<li>Model: BlazePalm detector + hand-landmark regressor</li>
+<li>Runtime: TensorFlow.js (WebGL / WASM)</li>
+<li>Use case: gesture UI, AR, sign language, interaction</li>
+</ul>
+</div>
 </div>
 <div class="cmp-actions">
 <a class="btn primary" href="https://storage.googleapis.com/tfjs-models/demos/hand-pose-detection/index.html?model=mediapipe_hands" target="_blank" rel="noopener">Open MediaPipe 3D Demo</a>
@@ -129,710 +149,415 @@ footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-siz
 <a class="btn" href="https://blog.tensorflow.org/2021/11/3D-handpose.html" target="_blank" rel="noopener">Read TF Blog Post</a>
 </div>
 <iframe id="mediapipeFrame" class="compare-frame hide" src="" title="MediaPipe 3D Hand Pose Demo" allow="camera; microphone; autoplay" referrerpolicy="no-referrer-when-downgrade"></iframe>
-<p style="margin-top:12px;font-size:12px;color:var(--gray);">The embedded MediaPipe demo requests webcam access and is hosted by Google. Some browsers block camera access inside cross-origin iframes; if unavailable, open it in a separate tab.</p>
+<p style="margin-top:12px;font-size:12px;color:var(--gray);">Note: the embedded MediaPipe demo requests webcam access and is hosted by Google (storage.googleapis.com). Some browsers block camera access inside cross-origin iframes — if the embedded view is blank or camera is denied, click <em>Open MediaPipe 3D Demo</em> to launch it in its own tab.</p>
 </section>
-<div class="disclaimer"><strong>Research and educational use only.</strong> XAge is a research prototype for pediatric hand-radiograph landmark localization. It is not a certified medical device and must not be used for clinical diagnosis, treatment, or bone-age reporting.</div>
+
+<div class="disclaimer"><strong>Research and educational use only.</strong> XAge is a research prototype for pediatric hand-radiograph landmark localisation. It is not a certified medical device and must never be used for clinical diagnosis, treatment, or bone-age reporting. Always defer to a qualified radiologist and validated tools for any clinical decision.</div>
 <footer>XAge · Pediatric Hand Landmark Detection · Derrick Mirindi · Frederic Mirindi</footer>
 </div>
 <script>
 (function(){
-"use strict";
-
-var $ = function(id){ return document.getElementById(id); };
-
-var canvas = $("canvas"), ctx = canvas.getContext("2d"), video = $("video");
-var session = null, mode = "image", stream = null, running = false;
-var conf = 0.25, iou = 0.45;
-var rafId = null, lastImg = null, vidRunning = false, vidRaf = null;
-var inputIsFp16 = false, isInferencing = false;
-
-var CACHE_DB = "xage-int8-model-v4";
-var CACHE_KEY = "best-int8-pose-v4";
-
-/*
-  ===========================================================
-  HARD MODEL CONTRACT — do not infer shape heuristically.
-  ===========================================================
-  This model has exactly:
-    - 1 object class: "hand"
-    - 17 keypoints per detected hand
-
-  Every prediction row therefore has EXACTLY:
-    4  (box: cx, cy, w, h)
-  + 1  (hand confidence score)
-  + 17 * 3 (x, y, visibility per keypoint)
-  = 56 values total.
-
-  There is NO class index byte in this layout. The previous bug
-  treated offset 5 as a class id ("clsIdx") and looked it up in an
-  18-name array, which produced nonsense labels like "class 134"
-  and duplicated/garbage boxes. That code path has been removed
-  entirely — this version only supports the single-class pose format.
-*/
-var NUM_KEYPOINTS = 17;
-var KP_START = 5;
-var EXPECTED_FEATURES = KP_START + NUM_KEYPOINTS * 3; // 56
-
-var MODEL = {
-  path: "./best_int8.onnx",
-  inputSize: 640,
-  keypointNames: Array.from({length: NUM_KEYPOINTS}, function(_, i){
-    return "Landmark " + (i + 1);
-  }),
-  keypointColors: [
-    "#FF1744","#FF6D00","#FFD600","#76FF03","#00E676","#00B0FF","#2979FF",
-    "#651FFF","#D500F9","#F50057","#FF5252","#FF9100","#AEEA00","#1DE9B6",
-    "#00B8D4","#3D5AFE","#C51162"
-  ],
-  // Visual-only scaffold lines for display; not a claimed anatomical graph.
-  skeleton: [
-    [0,1],[1,2],[3,4],[4,5],[6,7],[7,8],[9,10],[10,11],
-    [12,13],[13,14],[14,15],[15,16],[2,5],[5,8],[8,11],[11,14],[14,16]
-  ]
-};
-
-function setStatus(text, cls){
-  $("statusText").textContent = text;
-  $("dot").className = "status-dot " + (cls || "");
-}
-
-function setProgress(pct){
-  var wrap = $("progressWrap"), bar = $("progressBar");
-  if(pct === null){ wrap.classList.add("hide"); }
-  else { wrap.classList.remove("hide"); bar.style.width = pct + "%"; }
-}
-
-function showDebug(text){
-  var box = $("debugBox");
-  box.textContent = text;
-  box.classList.remove("hide");
-}
-
-function f32tof16(value){
-  var f = new Float32Array(1); f[0] = value;
-  var bits = new Int32Array(f.buffer)[0];
-  var sign = (bits >> 16) & 0x8000;
-  var exponent = ((bits >> 23) & 0xff) - 127 + 15;
-  var mantissa = bits & 0x7fffff;
-  if(exponent <= 0){
-    if(exponent < -10) return sign;
-    mantissa = (mantissa | 0x800000) >> (1 - exponent);
-    return sign | (mantissa >> 13);
-  }
-  if(exponent >= 31) return sign | 0x7c00;
-  return sign | (exponent << 10) | (mantissa >> 13);
-}
-
-async function openCacheDb(){
-  return await new Promise(function(resolve, reject){
-    var r = indexedDB.open(CACHE_DB, 1);
-    r.onupgradeneeded = function(){
-      if(!r.result.objectStoreNames.contains("models")) r.result.createObjectStore("models");
-    };
-    r.onsuccess = function(){ resolve(r.result); };
-    r.onerror = function(){ reject(r.error); };
-  });
-}
-
-async function getCachedModel(){
-  if(!("indexedDB" in window)) return null;
-  try{
-    var db = await openCacheDb();
-    var tx = db.transaction("models", "readonly");
-    var value = await new Promise(function(resolve, reject){
-      var r = tx.objectStore("models").get(CACHE_KEY);
-      r.onsuccess = function(){ resolve(r.result); };
-      r.onerror = function(){ reject(r.error); };
-    });
-    db.close();
-    return value && value.buffer ? value.buffer : null;
-  }catch(e){ console.warn("Cache read failed:", e); return null; }
-}
-
-async function setCachedModel(buffer){
-  if(!("indexedDB" in window)) return;
-  try{
-    var db = await openCacheDb();
-    var tx = db.transaction("models", "readwrite");
-    tx.objectStore("models").put({buffer: buffer}, CACHE_KEY);
-    await new Promise(function(resolve, reject){
-      tx.oncomplete = function(){ resolve(); };
-      tx.onerror = function(){ reject(tx.error); };
-    });
-    db.close();
-  }catch(e){ console.warn("Cache write failed:", e); }
-}
-
-async function deleteCachedModel(){
-  if(!("indexedDB" in window)) return;
-  try{
-    var db = await openCacheDb();
-    var tx = db.transaction("models", "readwrite");
-    tx.objectStore("models").delete(CACHE_KEY);
-    await new Promise(function(resolve, reject){
-      tx.oncomplete = function(){ resolve(); };
-      tx.onerror = function(){ reject(tx.error); };
-    });
-    db.close();
-  }catch(e){ console.warn("Cache delete failed:", e); }
-}
-
-async function downloadModel(url){
-  var response = await fetch(url, {cache: "no-store"});
-  if(!response.ok){
-    throw new Error("Model download failed (" + response.status + ") for " + url +
-      ". Place best_int8.onnx beside this HTML file.");
-  }
-  if(!response.body) return await response.arrayBuffer();
-  var total = Number(response.headers.get("content-length")) || 0;
-  var reader = response.body.getReader();
-  var received = 0, chunks = [];
-  while(true){
-    var item = await reader.read();
-    if(item.done) break;
-    chunks.push(item.value);
-    received += item.value.length;
-    if(total > 0) setProgress(Math.round(received / total * 100));
-  }
-  return await new Blob(chunks).arrayBuffer();
-}
-
-async function createSession(buffer){
-  try{
-    return await ort.InferenceSession.create(buffer, {
-      executionProviders: ["wasm"],
-      graphOptimizationLevel: "all"
-    });
-  }catch(error){
-    var msg = String(error && error.message || error);
-    throw new Error(
-      "ONNX Runtime Web could not load best_int8.onnx (" + msg + "). " +
-      "This can happen if the INT8 export uses operators unsupported in the browser WASM runtime. " +
-      "Try the non-quantized best.onnx as a fallback."
-    );
-  }
-}
-
-async function loadModel(){
-  try{
-    if(typeof ort === "undefined"){
-      setStatus("ONNX Runtime failed to load. Check the CDN/network connection.", "err");
-      return;
+var $=function(id){return document.getElementById(id);};
+var canvas=$('canvas'),ctx=canvas.getContext('2d'),video=$('video');
+var session=null,mode='image',stream=null,running=false,conf=0.25,iou=0.45,rafId=null,lastImg=null,vidRunning=false,vidRaf=null;
+var inputIsFp16=false;
+var MODEL={path:'./best.onnx',inputSize:640,
+classes:['hand','distal_phalanx_1','distal_phalanx_2','distal_phalanx_3','distal_phalanx_4','distal_phalanx_5','middle_phalanx_2','middle_phalanx_3','middle_phalanx_4','middle_phalanx_5','proximal_phalanx_1','proximal_phalanx_2','proximal_phalanx_3','proximal_phalanx_4','proximal_phalanx_5','metacarpal_1','carpal_region','radius_ulna'],
+colors:['#C8102E','#FF6A00','#FFC400','#00843D','#0072CE','#B10DC9','#FF4136','#FF851B','#2ECC40','#39CCCC','#7FDBFF','#001F3F','#F012BE','#85144B','#3D9970','#AAAAAA','#111111','#8A2BE2']};
+var CACHE_NAME='xage-model-v1',CACHE_KEY='best-onnx-v1';
+function clsName(i){return MODEL.classes[i]||('class '+i);}
+function clsColor(i){return MODEL.colors[i]||'#C8102E';}
+function setStatus(txt,cls){$('statusText').textContent=txt;$('dot').className='status-dot '+(cls||'');}
+function setProgress(pct){var w=$('progressWrap'),b=$('progressBar');if(pct===null){w.classList.add('hide');}else{w.classList.remove('hide');b.style.width=pct+'%';}}
+function f32tof16(val){var f=new Float32Array(1);f[0]=val;var i=new Int32Array(f.buffer)[0];var s=(i>>16)&0x8000;var e=((i>>23)&0xff)-127+15;var m=i&0x7fffff;if(e<=0){if(e<-10)return s;m=(m|0x800000)>>(1-e);return s|(m>>13);}if(e>=31)return s|0x7c00;return s|(e<<10)|(m>>13);}
+async function getCachedModel(){if(!('indexedDB' in window))return null;try{var db=await new Promise(function(res,rej){var r=indexedDB.open(CACHE_NAME,1);r.onupgradeneeded=function(){r.result.createObjectStore('models');};r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});var tx=db.transaction('models','readonly');var store=tx.objectStore('models');var data=await new Promise(function(res,rej){var r=store.get(CACHE_KEY);r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});db.close();return data?data.buffer:null;}catch(e){console.warn('Cache read:',e);return null;}}
+async function setCachedModel(buffer){if(!('indexedDB' in window))return;try{var db=await new Promise(function(res,rej){var r=indexedDB.open(CACHE_NAME,1);r.onupgradeneeded=function(){r.result.createObjectStore('models');};r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});var tx=db.transaction('models','readwrite');tx.objectStore('models').put({buffer:buffer},CACHE_KEY);await new Promise(function(res,rej){tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});db.close();}catch(e){console.warn('Cache write:',e);}}
+async function downloadModel(url){var resp=await fetch(url);if(!resp.ok)throw new Error('Model download failed ('+resp.status+') for '+url+'. Ensure best.onnx is uploaded to the repo root.');var total=+resp.headers.get('content-length')||0;var reader=resp.body.getReader();var received=0;var chunks=[];while(true){var r=await reader.read();if(r.done)break;chunks.push(r.value);received+=r.value.length;if(total>0)setProgress(Math.round(received/total*100));}return await new Blob(chunks).arrayBuffer();}
+function safeMeta(container,name){if(!container)return null;try{if(typeof container==='object'&&!Array.isArray(container)&&name&&Object.prototype.hasOwnProperty.call(container,name))return container[name];}catch(e){}try{if(Array.isArray(container))return container[0]||null;}catch(e){}return null;}
+async function loadModel(){try{if(typeof ort==='undefined'){setStatus('ONNX Runtime failed to load (check network/CDN).','err');return;}ort.env.wasm.numThreads=1;setStatus('Checking cache...','busy');var buffer=null;try{buffer=await getCachedModel();}catch(ce){console.warn('Cache read failed:',ce);buffer=null;}if(buffer){setStatus('Loading from cache...','busy');}else{setStatus('Downloading model...','busy');setProgress(0);buffer=await downloadModel(MODEL.path);setProgress(null);setStatus('Caching model...','busy');await setCachedModel(buffer);}setStatus('Initializing session...','busy');session=await ort.InferenceSession.create(buffer,{executionProviders:['wasm'],graphOptimizationLevel:'all'});try{var inName=(session.inputNames&&session.inputNames[0])||'images';var meta=safeMeta(session.inputMetadata,inName);var t=meta&&(meta.type||meta.dataType||'');inputIsFp16=/float16|fp16/i.test(String(t));}catch(me){console.warn('input meta read:',me);inputIsFp16=false;}try{var outName=(session.outputNames&&session.outputNames[0])||'output0';var outMeta=safeMeta(session.outputMetadata,outName);var dims=outMeta&&(outMeta.shape||outMeta.dims);console.log('Input:',session.inputNames,'Output:',session.outputNames,'Output dims:',dims);}catch(oe){console.warn('output meta read:',oe);}setStatus('Ready — select an input','on');}catch(e){var m=String(e&&e.message||e);var friendly='Model load error: '+m;if(/no such file|404|failed to fetch|download failed/i.test(m)){friendly='Model file not found. Ensure best.onnx is uploaded to the repository root.';}else if(/float16|fp16|does not match expected type/i.test(m)){friendly='Model type mismatch. Try re-exporting best.onnx.';}setStatus(friendly,'err');console.error(e);}}
+function preprocess(source,sw,sh){var S=MODEL.inputSize;var scale=Math.min(S/sw,S/sh);var nw=Math.round(sw*scale),nh=Math.round(sh*scale);var padX=Math.floor((S-nw)/2),padY=Math.floor((S-nh)/2);var off=document.createElement('canvas');off.width=S;off.height=S;var octx=off.getContext('2d');octx.fillStyle='#727272';octx.fillRect(0,0,S,S);octx.drawImage(source,0,0,sw,sh,padX,padY,nw,nh);var img=octx.getImageData(0,0,S,S).data;var area=S*S;var f=new Float32Array(area*3);for(var i=0;i<area;i++){f[i]=img[i*4]/255;f[area+i]=img[i*4+1]/255;f[area*2+i]=img[i*4+2]/255;}var tensor;if(inputIsFp16){var u=new Uint16Array(area*3);for(var k=0;k<f.length;k++){u[k]=f32tof16(f[k]);}tensor=new ort.Tensor('float16',u,[1,3,S,S]);}else{tensor=new ort.Tensor('float32',f,[1,3,S,S]);}return{tensor:tensor,scale:scale,padX:padX,padY:padY};}
+function iouCalc(a,b){var x1=Math.max(a[0],b[0]),y1=Math.max(a[1],b[1]),x2=Math.min(a[2],b[2]),y2=Math.min(a[3],b[3]);var w=Math.max(0,x2-x1),h=Math.max(0,y2-y1);var inter=w*h;var areaA=(a[2]-a[0])*(a[3]-a[1]),areaB=(b[2]-b[0])*(b[3]-b[1]);return inter/(areaA+areaB-inter+1e-9);}
+function nms(boxes){boxes.sort(function(a,b){return b.score-a.score;});var keep=[];for(var i=0;i<boxes.length;i++){var ok=true;for(var j=0;j<keep.length;j++){if(keep[j].cls===boxes[i].cls&&iouCalc(boxes[i].box,keep[j].box)>iou){ok=false;break;}}if(ok)keep.push(boxes[i]);}return keep;}
+function toF32(arr){if(arr instanceof Float32Array)return arr;var out=new Float32Array(arr.length);for(var i=0;i<arr.length;i++){out[i]=arr[i];}return out;}
+function postprocess(output,pre){var dims=output.dims;var data=toF32(output.data);var boxes=[];
+// Detect layout. YOLOv8-pose end2end: [1, N, 6+K*3] (rows). Raw YOLOv8: [1, 4+nc, num_anchors] (channels).
+var isRows=(dims.length===3 && dims[1]>=1 && dims[2]>=6 && dims[2]<dims[1]*4);
+// Fallback: if dims[1] is small (<=300) and dims[2] is small-ish, treat as rows.
+if(dims.length===3 && dims[1]<=300 && dims[2]<=200) isRows=true;
+if(isRows){
+  var N=dims[1], F=dims[2];
+  // Format assumed: [x1,y1,x2,y2,score,cls, kp1x,kp1y,kp1v, ...]
+  var kpCount=Math.max(0,Math.floor((F-6)/3));
+  for(var i=0;i<N;i++){
+    var off=i*F;
+    var x1r=data[off+0],y1r=data[off+1],x2r=data[off+2],y2r=data[off+3];
+    var score=data[off+4]; var clsIdx=Math.round(data[off+5]);
+    if(!isFinite(score)||score<conf)continue;
+    // Sanity: skip empty rows
+    if(x1r===0&&y1r===0&&x2r===0&&y2r===0&&score===0)continue;
+    var x1=(x1r-pre.padX)/pre.scale, y1=(y1r-pre.padY)/pre.scale;
+    var x2=(x2r-pre.padX)/pre.scale, y2=(y2r-pre.padY)/pre.scale;
+    var kps=[];
+    for(var k=0;k<kpCount;k++){
+      var kx=(data[off+6+k*3]-pre.padX)/pre.scale;
+      var ky=(data[off+6+k*3+1]-pre.padY)/pre.scale;
+      var kv=data[off+6+k*3+2];
+      kps.push({x:kx,y:ky,v:kv});
     }
-    ort.env.wasm.numThreads = 1;
-    ort.env.wasm.simd = true;
-
-    setStatus("Loading best_int8.onnx...", "busy");
-    setProgress(0);
-
-    var buffer = await getCachedModel();
-    if(buffer){
-      setStatus("Loading best_int8.onnx from cache...", "busy");
-    } else {
-      setStatus("Downloading best_int8.onnx...", "busy");
-      buffer = await downloadModel(MODEL.path);
-      await setCachedModel(buffer);
-    }
-    setProgress(null);
-
-    setStatus("Creating ONNX Runtime session...", "busy");
-    try{
-      session = await createSession(buffer);
-    }catch(firstError){
-      await deleteCachedModel();
-      setStatus("Refreshing cache and retrying...", "busy");
-      setProgress(0);
-      buffer = await downloadModel(MODEL.path);
-      setProgress(null);
-      await setCachedModel(buffer);
-      session = await createSession(buffer);
-    }
-
-    var inputMeta = session.inputMetadata[session.inputNames[0]];
-    var inputType = String(inputMeta.type || inputMeta.dataType || "");
-    inputIsFp16 = /float16|fp16/i.test(inputType);
-
-    var outputMeta = session.outputMetadata[session.outputNames[0]];
-    console.log("[XAge] Model:", MODEL.path);
-    console.log("[XAge] Input meta:", inputMeta);
-    console.log("[XAge] Output meta:", outputMeta);
-
-    showDebug(
-      "Output name: " + session.outputNames[0] + "\n" +
-      "Output dims: " + JSON.stringify(outputMeta.shape || outputMeta.dims || "unknown") + "\n" +
-      "Expected features per row: " + EXPECTED_FEATURES + " (4 box + 1 hand-score + 17*3 keypoints)"
-    );
-
-    setStatus("Ready — upload a hand X-ray image", "on");
-  }catch(error){
-    console.error(error);
-    setProgress(null);
-    setStatus("Model load error: " + String(error.message || error), "err");
+    boxes.push({box:[x1,y1,x2,y2],score:score,cls:isFinite(clsIdx)&&clsIdx>=0?clsIdx:0,kps:kps});
   }
+  return boxes; // already NMS'd end2end
 }
-
-function preprocess(source, sw, sh){
-  var S = MODEL.inputSize;
-  var scale = Math.min(S / sw, S / sh);
-  var nw = Math.round(sw * scale), nh = Math.round(sh * scale);
-  var padX = Math.floor((S - nw) / 2), padY = Math.floor((S - nh) / 2);
-
-  var off = document.createElement("canvas");
-  off.width = S; off.height = S;
-  var octx = off.getContext("2d");
-  octx.fillStyle = "#727272";
-  octx.fillRect(0, 0, S, S);
-  octx.drawImage(source, 0, 0, sw, sh, padX, padY, nw, nh);
-
-  var rgba = octx.getImageData(0, 0, S, S).data;
-  var area = S * S;
-  var data = new Float32Array(area * 3);
-  for(var p = 0; p < area; p++){
-    data[p] = rgba[p * 4] / 255;
-    data[area + p] = rgba[p * 4 + 1] / 255;
-    data[area * 2 + p] = rgba[p * 4 + 2] / 255;
-  }
-
-  var tensor;
-  if(inputIsFp16){
-    var half = new Uint16Array(data.length);
-    for(var i = 0; i < data.length; i++) half[i] = f32tof16(data[i]);
-    tensor = new ort.Tensor("float16", half, [1, 3, S, S]);
-  } else {
-    tensor = new ort.Tensor("float32", data, [1, 3, S, S]);
-  }
-
-  return {tensor: tensor, scale: scale, padX: padX, padY: padY};
-}
-
-function iouCalc(a, b){
-  var x1 = Math.max(a[0], b[0]), y1 = Math.max(a[1], b[1]);
-  var x2 = Math.min(a[2], b[2]), y2 = Math.min(a[3], b[3]);
-  var w = Math.max(0, x2 - x1), h = Math.max(0, y2 - y1);
-  var inter = w * h;
-  var areaA = Math.max(0, a[2] - a[0]) * Math.max(0, a[3] - a[1]);
-  var areaB = Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
-  return inter / (areaA + areaB - inter + 1e-9);
-}
-
-function nmsPose(dets){
-  dets.sort(function(a, b){ return b.score - a.score; });
-  var keep = [];
-  for(var i = 0; i < dets.length; i++){
-    var accept = true;
-    for(var j = 0; j < keep.length; j++){
-      if(iouCalc(dets[i].box, keep[j].box) > iou){ accept = false; break; }
-    }
-    if(accept) keep.push(dets[i]);
-  }
-  return keep;
-}
-
-/*
-  Read one feature value from a raw typed array, given a layout.
-  "features_first"    => dims like [1, 56, N]   (channel-major)
-  "predictions_first"  => dims like [1, N, 56]   (row-major)
-*/
-function valueAt(data, layout, predIdx, featIdx, nPred, nFeat){
-  return layout === "features_first"
-    ? data[featIdx * nPred + predIdx]
-    : data[predIdx * nFeat + featIdx];
-}
-
-function detectLayout(dims){
-  if(dims.length !== 3){
-    throw new Error("Unexpected output rank " + dims.length + ". Expected a 3D tensor.");
-  }
-  var d1 = Number(dims[1]), d2 = Number(dims[2]);
-
-  // features-first: [1, 56, N] where 56 (or more, if extra padding) is small
-  // relative to N (which is typically thousands of anchor predictions).
-  if(d1 === EXPECTED_FEATURES || (d1 >= EXPECTED_FEATURES && d1 < d2)){
-    return {layout: "features_first", nFeat: d1, nPred: d2};
-  }
-  // predictions-first: [1, N, 56]
-  if(d2 === EXPECTED_FEATURES || (d2 >= EXPECTED_FEATURES && d2 < d1)){
-    return {layout: "predictions_first", nFeat: d2, nPred: d1};
-  }
-
-  throw new Error(
-    "Could not match output shape [" + dims.join(", ") + "] to the expected " +
-    EXPECTED_FEATURES + "-feature single-class 17-keypoint pose layout. " +
-    "Re-export the model with a single hand class and 17 keypoints, " +
-    "or inspect the console-logged output metadata."
-  );
-}
-
-function isFiniteNumber(v){
-  return typeof v === "number" && Number.isFinite(v);
-}
-
-function postprocessPose(output, pre, sourceWidth, sourceHeight){
-  var dims = output.dims.map(Number);
-  var data = output.data;
-
-  var layoutInfo = detectLayout(dims);
-  var layout = layoutInfo.layout, nFeat = layoutInfo.nFeat, nPred = layoutInfo.nPred;
-
-  if(nFeat < EXPECTED_FEATURES){
-    throw new Error(
-      "ONNX output provides " + nFeat + " values per prediction, but " +
-      EXPECTED_FEATURES + " are required for 1 hand class + 17 keypoints."
-    );
-  }
-
-  var dets = [];
-  var maxDim = Math.max(sourceWidth, sourceHeight) * 3; // sanity bound
-
-  for(var pi = 0; pi < nPred; pi++){
-    var score = valueAt(data, layout, pi, 4, nPred, nFeat);
-    if(!isFiniteNumber(score)) continue;
-
-    // Reject anything outside a normal probability range.
-    // (This is what silently produced "72602.6%" before: raw un-sanitized values.)
-    if(score < conf || score > 1.0001) continue;
-
-    var cx = valueAt(data, layout, pi, 0, nPred, nFeat);
-    var cy = valueAt(data, layout, pi, 1, nPred, nFeat);
-    var bw = valueAt(data, layout, pi, 2, nPred, nFeat);
-    var bh = valueAt(data, layout, pi, 3, nPred, nFeat);
-
-    if(![cx, cy, bw, bh].every(isFiniteNumber)) continue;
-    if(bw <= 0 || bh <= 0) continue;
-
-    var x1 = (cx - bw / 2 - pre.padX) / pre.scale;
-    var y1 = (cy - bh / 2 - pre.padY) / pre.scale;
-    var x2 = (cx + bw / 2 - pre.padX) / pre.scale;
-    var y2 = (cy + bh / 2 - pre.padY) / pre.scale;
-
-    // Reject boxes that are absurd relative to the actual image size.
-    if(!isFiniteNumber(x1) || !isFiniteNumber(y1) || !isFiniteNumber(x2) || !isFiniteNumber(y2)) continue;
-    if(Math.abs(x2 - x1) > maxDim || Math.abs(y2 - y1) > maxDim) continue;
-
-    var keypoints = [];
-    var validKeypointCount = 0;
-
-    for(var k = 0; k < NUM_KEYPOINTS; k++){
-      var off = KP_START + k * 3;
-      var kx = valueAt(data, layout, pi, off, nPred, nFeat);
-      var ky = valueAt(data, layout, pi, off + 1, nPred, nFeat);
-      var kv = valueAt(data, layout, pi, off + 2, nPred, nFeat);
-
-      var validPoint = isFiniteNumber(kx) && isFiniteNumber(ky) && isFiniteNumber(kv);
-      var px = validPoint ? (kx - pre.padX) / pre.scale : NaN;
-      var py = validPoint ? (ky - pre.padY) / pre.scale : NaN;
-
-      if(validPoint && kv >= 0.05 && kv <= 1.0001) validKeypointCount++;
-
-      keypoints.push({x: px, y: py, score: validPoint ? kv : 0});
-    }
-
-    dets.push({box: [x1, y1, x2, y2], score: score, keypoints: keypoints, validKeypointCount: validKeypointCount});
-  }
-
-  return nmsPose(dets);
-}
-
-function clip(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
-
-function draw(source, sw, sh, dets){
-  canvas.width = sw; canvas.height = sh;
-  ctx.drawImage(source, 0, 0, sw, sh);
-
-  var lineW = Math.max(2, sw / 360);
-  var radius = Math.max(4, sw / 210);
-  var font = Math.max(13, Math.round(sw / 42));
-  ctx.lineJoin = "round"; ctx.lineCap = "round";
-
-  (dets || []).forEach(function(d){
-    var x1 = clip(d.box[0], 0, sw), y1 = clip(d.box[1], 0, sh);
-    var x2 = clip(d.box[2], 0, sw), y2 = clip(d.box[3], 0, sh);
-    var bw = Math.max(1, x2 - x1), bh = Math.max(1, y2 - y1);
-
-    // Exactly ONE box per detected hand instance — never per landmark.
-    ctx.strokeStyle = "#0057E7";
-    ctx.lineWidth = lineW;
-    ctx.strokeRect(x1, y1, bw, bh);
-
-    var label = "hand " + (d.score * 100).toFixed(1) + "%";
-    ctx.font = "bold " + font + "px Helvetica, Arial, sans-serif";
-    var tw = ctx.measureText(label).width, th = font + 8;
-    ctx.fillStyle = "#0057E7";
-    ctx.fillRect(x1, Math.max(0, y1 - th), tw + 12, th);
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillText(label, x1 + 6, Math.max(font, y1 - 6));
-
-    ctx.lineWidth = Math.max(1.5, sw / 500);
-    MODEL.skeleton.forEach(function(edge){
-      var a = d.keypoints[edge[0]], b = d.keypoints[edge[1]];
-      if(!a || !b || a.score < 0.05 || b.score < 0.05) return;
-      if(!isFiniteNumber(a.x) || !isFiniteNumber(a.y) || !isFiniteNumber(b.x) || !isFiniteNumber(b.y)) return;
-      ctx.strokeStyle = "rgba(0,0,0,0.62)";
-      ctx.beginPath();
-      ctx.moveTo(clip(a.x, 0, sw), clip(a.y, 0, sh));
-      ctx.lineTo(clip(b.x, 0, sw), clip(b.y, 0, sh));
-      ctx.stroke();
-    });
-
-    d.keypoints.forEach(function(kp, idx){
-      if(!isFiniteNumber(kp.x) || !isFiniteNumber(kp.y) || kp.score < 0.05) return;
-      var x = clip(kp.x, 0, sw), y = clip(kp.y, 0, sh);
-      var color = MODEL.keypointColors[idx];
-
-      ctx.beginPath(); ctx.fillStyle = "#000"; ctx.arc(x, y, radius + 2, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.fillStyle = color; ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
-
-      ctx.font = "bold " + Math.max(10, Math.round(font * 0.72)) + "px Helvetica, Arial, sans-serif";
-      var lx = x + radius + 3, ly = y - radius - 2;
-      ctx.lineWidth = 3; ctx.strokeStyle = "#FFF";
-      ctx.strokeText(String(idx + 1), lx, ly);
-      ctx.fillStyle = "#000";
-      ctx.fillText(String(idx + 1), lx, ly);
-    });
-  });
-}
-
-function updateStats(dets, ms){
-  var count = 0, maxScore = 0;
-  (dets || []).forEach(function(d){
-    maxScore = Math.max(maxScore, d.score);
-    count += d.validKeypointCount;
-  });
-
-  $("statNotes").textContent = count;
-  $("statConf").textContent = maxScore ? (Math.min(maxScore, 1) * 100).toFixed(1) + "%" : "—";
-  $("statMs").textContent = ms ? Math.round(ms) : "—";
-
-  var list = $("detList");
-  list.innerHTML = "";
-
-  if(!dets || dets.length === 0){
-    list.innerHTML = "<div class='det-row'><span>No hand detected at the selected confidence threshold.</span></div>";
-    return;
-  }
-
-  dets.forEach(function(d){
-    var row = document.createElement("div");
-    row.className = "det-row";
-    row.innerHTML = "<span class='det-badge' style='background:#0057E7'>Hand</span><span>" +
-      (Math.min(d.score, 1) * 100).toFixed(1) + "%</span>";
-    list.appendChild(row);
-
-    d.keypoints.forEach(function(kp, idx){
-      var r = document.createElement("div");
-      r.className = "det-row";
-      var badge = document.createElement("span");
-      badge.className = "det-badge";
-      badge.style.background = MODEL.keypointColors[idx];
-      badge.textContent = "Landmark " + (idx + 1);
-      var score = document.createElement("span");
-      score.textContent = (kp.score >= 0.05 && isFiniteNumber(kp.score))
-        ? (Math.min(kp.score, 1) * 100).toFixed(1) + "%"
-        : "Not visible";
-      r.appendChild(badge);
-      r.appendChild(score);
-      list.appendChild(r);
-    });
-  });
-}
-
-async function runInference(source, sw, sh){
-  if(!session){ setStatus("Model is not ready yet.", "busy"); return; }
-  if(!sw || !sh || isInferencing) return;
-  isInferencing = true;
-  try{
-    var pre = preprocess(source, sw, sh);
-    var feeds = {};
-    feeds[session.inputNames[0]] = pre.tensor;
-
-    var start = performance.now();
-    var outputs = await session.run(feeds);
-    var elapsed = performance.now() - start;
-
-    var output = outputs[session.outputNames[0]] || outputs[Object.keys(outputs)[0]];
-    var dets = postprocessPose(output, pre, sw, sh);
-
-    draw(source, sw, sh, dets);
-    updateStats(dets, elapsed);
-
-    setStatus(
-      dets.length
-        ? "Hand pose detected"
-        : "No hand detected — lower confidence threshold or try another X-ray",
-      "on"
-    );
-    return dets;
-  }catch(error){
-    console.error(error);
-    setStatus("Inference error: " + String(error.message || error), "err");
-  }finally{
-    isInferencing = false;
-  }
-}
-
-function handleFile(file){
-  if(!file) return;
-  var image = new Image();
-  image.onload = function(){
-    lastImg = image;
-    runInference(image, image.naturalWidth, image.naturalHeight);
-  };
-  image.onerror = function(){ setStatus("Could not load the selected image.", "err"); };
-  image.src = URL.createObjectURL(file);
-}
-
-function handleVideoFile(file){
-  if(!file) return;
-  stopVideo(); stopCamera();
-  video.srcObject = null;
-  video.src = URL.createObjectURL(file);
-  video.loop = false; video.muted = true;
-  video.onloadeddata = function(){
-    $("playVid").disabled = false; $("pauseVid").disabled = false;
-    setStatus("Video loaded — press Play.", "on");
-    draw(video, video.videoWidth, video.videoHeight, []);
-  };
-  video.onended = function(){ stopVideo(); setStatus("Video ended.", "on"); };
-  video.onerror = function(){ setStatus("Could not load video.", "err"); };
-}
-
-async function videoLoop(){
-  if(!vidRunning) return;
-  if(video.readyState >= 2 && !video.paused && !video.ended){
-    await runInference(video, video.videoWidth, video.videoHeight);
-  }
-  vidRaf = requestAnimationFrame(videoLoop);
-}
-
-async function playVideo(){
-  if(!video.src) return;
-  try{
-    await video.play();
-    vidRunning = true;
-    setStatus("Video pose detection running.", "on");
-    videoLoop();
-  }catch(e){ console.error(e); setStatus("Could not play video.", "err"); }
-}
-
-function stopVideo(){
-  vidRunning = false;
-  if(vidRaf) cancelAnimationFrame(vidRaf);
-  if(video && video.src && !video.paused){ try{ video.pause(); }catch(e){} }
-}
-
-async function cameraLoop(){
-  if(!running) return;
-  if(video.readyState >= 2) await runInference(video, video.videoWidth, video.videoHeight);
-  rafId = requestAnimationFrame(cameraLoop);
-}
-
-async function startCamera(){
-  try{
-    stopVideo();
-    stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: "environment"}});
-    video.srcObject = stream;
-    await video.play();
-    running = true;
-    $("startCam").disabled = true; $("stopCam").disabled = false;
-    setStatus("Live pose detection running.", "on");
-    cameraLoop();
-  }catch(e){ console.error(e); setStatus("Camera access denied or unavailable.", "err"); }
-}
-
-function stopCamera(){
-  running = false;
-  if(rafId) cancelAnimationFrame(rafId);
-  if(stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
-  $("startCam").disabled = false; $("stopCam").disabled = true;
-}
-
-function setMode(newMode){
-  mode = newMode;
-  document.querySelectorAll(".mode-btn").forEach(function(b){
-    b.classList.toggle("active", b.getAttribute("data-mode") === newMode);
-  });
-  $("imagePane").classList.add("hide");
-  $("videoPane").classList.add("hide");
-  $("camPane").classList.add("hide");
-  if(newMode === "image"){ $("imagePane").classList.remove("hide"); stopCamera(); stopVideo(); }
-  else if(newMode === "video"){ $("videoPane").classList.remove("hide"); stopCamera(); }
-  else{ $("camPane").classList.remove("hide"); stopVideo(); }
-}
-
-function renderLandmarkRef(){
-  var ref = $("landmarkRef");
-  var html = "<ol style='margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6;'>";
-  for(var i = 0; i < NUM_KEYPOINTS; i++){
-    html += "<li><span style='display:inline-block;width:10px;height:10px;background:" +
-      MODEL.keypointColors[i] + ";margin-right:6px;vertical-align:middle;'></span>" +
-      MODEL.keypointNames[i] + "</li>";
-  }
-  ref.innerHTML = html + "</ol>";
-}
-
-function wireMediapipeEmbed(){
-  var button = $("toggleMediapipeEmbed"), frame = $("mediapipeFrame");
-  var url = "https://storage.googleapis.com/tfjs-models/demos/hand-pose-detection/index.html?model=mediapipe_hands";
-  button.addEventListener("click", function(){
-    if(frame.classList.contains("hide")){
-      frame.src = url; frame.classList.remove("hide");
-      button.textContent = "Hide Embedded Demo";
-    } else {
-      frame.classList.add("hide"); frame.src = "";
-      button.textContent = "Toggle Embedded Demo";
-    }
-  });
-}
-
-function wire(){
-  var dz = $("dropZone"), fi = $("fileInput");
-  dz.addEventListener("click", function(){ fi.click(); });
-  fi.addEventListener("change", function(e){ handleFile(e.target.files[0]); });
-  dz.addEventListener("dragover", function(e){ e.preventDefault(); dz.classList.add("drag"); });
-  dz.addEventListener("dragleave", function(){ dz.classList.remove("drag"); });
-  dz.addEventListener("drop", function(e){
-    e.preventDefault(); dz.classList.remove("drag");
-    if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-  });
-
-  var vd = $("videoDrop"), vi = $("videoInput");
-  vd.addEventListener("click", function(){ vi.click(); });
-  vi.addEventListener("change", function(e){ handleVideoFile(e.target.files[0]); });
-  vd.addEventListener("dragover", function(e){ e.preventDefault(); vd.classList.add("drag"); });
-  vd.addEventListener("dragleave", function(){ vd.classList.remove("drag"); });
-  vd.addEventListener("drop", function(e){
-    e.preventDefault(); vd.classList.remove("drag");
-    if(e.dataTransfer.files.length) handleVideoFile(e.dataTransfer.files[0]);
-  });
-
-  $("playVid").addEventListener("click", playVideo);
-  $("pauseVid").addEventListener("click", function(){ stopVideo(); setStatus("Video paused.", "on"); });
-
-  $("confSlider").addEventListener("input", function(e){
-    conf = parseFloat(e.target.value);
-    $("confVal").textContent = conf.toFixed(2);
-    if(mode === "image" && lastImg) runInference(lastImg, lastImg.naturalWidth, lastImg.naturalHeight);
-  });
-  $("iouSlider").addEventListener("input", function(e){
-    iou = parseFloat(e.target.value);
-    $("iouVal").textContent = iou.toFixed(2);
-    if(mode === "image" && lastImg) runInference(lastImg, lastImg.naturalWidth, lastImg.naturalHeight);
-  });
-
-  document.querySelectorAll(".mode-btn").forEach(function(b){
-    b.addEventListener("click", function(){ setMode(b.getAttribute("data-mode")); });
-  });
-
-  $("startCam").addEventListener("click", startCamera);
-  $("stopCam").addEventListener("click", function(){ stopCamera(); setStatus("Camera stopped.", "on"); });
-
-  wireMediapipeEmbed();
-  renderLandmarkRef();
-}
-
+// Raw YOLOv8 [1, 4+nc, num]
+var num=dims[2];var nc=dims[1]-4;if(nc<1)nc=MODEL.classes.length;
+for(var i2=0;i2<num;i2++){var best=0,bestc=0;for(var c=0;c<nc;c++){var v=data[(4+c)*num+i2];if(v>best){best=v;bestc=c;}}if(best<conf)continue;var cx=data[0*num+i2],cy=data[1*num+i2],w=data[2*num+i2],h=data[3*num+i2];var x1b=(cx-w/2-pre.padX)/pre.scale;var y1b=(cy-h/2-pre.padY)/pre.scale;var x2b=(cx+w/2-pre.padX)/pre.scale;var y2b=(cy+h/2-pre.padY)/pre.scale;boxes.push({box:[x1b,y1b,x2b,y2b],score:best,cls:bestc,kps:[]});}return nms(boxes);}
+function draw(source,sw,sh,dets){canvas.width=sw;canvas.height=sh;ctx.drawImage(source,0,0,sw,sh);ctx.lineWidth=Math.max(2,sw/300);ctx.font='bold '+Math.max(14,Math.round(sw/40))+'px Helvetica,Arial,sans-serif';(dets||[]).forEach(function(d){var color=clsColor(d.cls);var x=d.box[0],y=d.box[1],w=d.box[2]-d.box[0],h=d.box[3]-d.box[1];ctx.strokeStyle=color;ctx.strokeRect(x,y,w,h);var label=clsName(d.cls)+' '+(d.score*100).toFixed(0)+'%';var tw=ctx.measureText(label).width;var th=Math.max(16,Math.round(sw/32));ctx.fillStyle=color;ctx.fillRect(x,y-th,tw+10,th);ctx.fillStyle='#fff';ctx.fillText(label,x+5,y-5);// draw keypoints if present
+if(d.kps&&d.kps.length){var r=Math.max(3,sw/220);d.kps.forEach(function(kp,idx){if(!isFinite(kp.x)||!isFinite(kp.y))return;if(kp.v!==undefined && kp.v<0.2)return;var kc=clsColor(idx+1);ctx.fillStyle=kc;ctx.beginPath();ctx.arc(kp.x,kp.y,r,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.stroke();ctx.lineWidth=Math.max(2,sw/300);});}else{var cx=x+w/2,cy=y+h/2;ctx.fillStyle=color;ctx.beginPath();ctx.arc(cx,cy,Math.max(3,sw/220),0,Math.PI*2);ctx.fill();}});}
+function updateStats(dets,ms){var maxc=0;(dets||[]).forEach(function(d){if(d.score>maxc)maxc=d.score;});$('statNotes').textContent=(dets||[]).length;$('statConf').textContent=maxc?(maxc*100).toFixed(1)+'%':'—';$('statMs').textContent=ms?Math.round(ms):'—';var list=$('detList');list.innerHTML='';(dets||[]).forEach(function(d){var row=document.createElement('div');row.className='det-row';var badge=document.createElement('span');badge.className='det-badge';badge.textContent=clsName(d.cls);badge.style.background=clsColor(d.cls);var sc=document.createElement('span');sc.textContent=(d.score*100).toFixed(1)+'%';row.appendChild(badge);row.appendChild(sc);list.appendChild(row);});}
+async function runInference(source,sw,sh){if(!session){setStatus('Model not ready yet','busy');return;}try{var pre=preprocess(source,sw,sh);var t0=performance.now();var feeds={};feeds[session.inputNames[0]]=pre.tensor;var out=await session.run(feeds);var ms=performance.now()-t0;var output=out[session.outputNames[0]];var dets=postprocess(output,pre);draw(source,sw,sh,dets);updateStats(dets,ms);return dets;}catch(e){setStatus('Inference error: '+String(e&&e.message||e),'err');console.error(e);}}
+function handleFile(file){if(!file)return;var img=new Image();img.onload=function(){lastImg=img;runInference(img,img.naturalWidth,img.naturalHeight);};img.onerror=function(){setStatus('Could not load image','err');};img.src=URL.createObjectURL(file);}
+function handleVideoFile(file){if(!file)return;stopVideo();stopCamera();video.srcObject=null;video.src=URL.createObjectURL(file);video.loop=false;video.muted=true;video.onloadeddata=function(){$('playVid').disabled=false;$('pauseVid').disabled=false;setStatus('Video loaded — press Play','on');draw(video,video.videoWidth,video.videoHeight,[]);};video.onended=function(){stopVideo();setStatus('Video ended','on');};video.onerror=function(){setStatus('Could not load video','err');};}
+async function vidLoop(){if(!vidRunning)return;if(video.readyState>=2&&!video.paused&&!video.ended){await runInference(video,video.videoWidth,video.videoHeight);}vidRaf=requestAnimationFrame(vidLoop);}
+async function playVideo(){if(!video.src)return;try{await video.play();vidRunning=true;setStatus('Video detection running','on');vidLoop();}catch(e){setStatus('Could not play video','err');console.error(e);}}
+function stopVideo(){vidRunning=false;if(vidRaf)cancelAnimationFrame(vidRaf);if(video&&video.src&&!video.paused){try{video.pause();}catch(e){}}}
+async function camLoop(){if(!running)return;if(video.readyState>=2){await runInference(video,video.videoWidth,video.videoHeight);}rafId=requestAnimationFrame(camLoop);}
+async function startCamera(){try{stopVideo();stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});video.srcObject=stream;await video.play();running=true;$('startCam').disabled=true;$('stopCam').disabled=false;setStatus('Live detection running','on');camLoop();}catch(e){setStatus('Camera access denied or unavailable','err');console.error(e);}}
+function stopCamera(){running=false;if(rafId)cancelAnimationFrame(rafId);if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}$('startCam').disabled=false;$('stopCam').disabled=true;}
+function setMode(m){mode=m;document.querySelectorAll('.mode-btn').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-mode')===m);});$('imagePane').classList.add('hide');$('videoPane').classList.add('hide');$('camPane').classList.add('hide');if(m==='image'){$('imagePane').classList.remove('hide');stopCamera();stopVideo();}else if(m==='video'){$('videoPane').classList.remove('hide');stopCamera();}else{$('camPane').classList.remove('hide');stopVideo();}}
+function renderLandmarkRef(){var ref=$('landmarkRef');if(!ref)return;var html='<ol style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6;">';for(var i=0;i<MODEL.classes.length;i++){html+='<li><span style="display:inline-block;width:10px;height:10px;background:'+clsColor(i)+';margin-right:6px;vertical-align:middle;"></span>'+MODEL.classes[i]+'</li>';}html+='</ol>';ref.innerHTML=html;}
+function wireMediapipeEmbed(){var btn=$('toggleMediapipeEmbed');var frame=$('mediapipeFrame');var url='https://storage.googleapis.com/tfjs-models/demos/hand-pose-detection/index.html?model=mediapipe_hands';btn.addEventListener('click',function(){if(frame.classList.contains('hide')){frame.src=url;frame.classList.remove('hide');btn.textContent='Hide Embedded Demo';}else{frame.classList.add('hide');frame.src='';btn.textContent='Toggle Embedded Demo';}});}
+function wire(){var dz=$('dropZone'),fi=$('fileInput');dz.addEventListener('click',function(){fi.click();});fi.addEventListener('change',function(e){handleFile(e.target.files[0]);});dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag');});dz.addEventListener('dragleave',function(){dz.classList.remove('drag');});dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});var vd=$('videoDrop'),vi=$('videoInput');vd.addEventListener('click',function(){vi.click();});vi.addEventListener('change',function(e){handleVideoFile(e.target.files[0]);});vd.addEventListener('dragover',function(e){e.preventDefault();vd.classList.add('drag');});vd.addEventListener('dragleave',function(){vd.classList.remove('drag');});vd.addEventListener('drop',function(e){e.preventDefault();vd.classList.remove('drag');if(e.dataTransfer.files.length)handleVideoFile(e.dataTransfer.files[0]);});$('playVid').addEventListener('click',playVideo);$('pauseVid').addEventListener('click',function(){stopVideo();setStatus('Video paused','on');});$('confSlider').addEventListener('input',function(e){conf=parseFloat(e.target.value);$('confVal').textContent=conf.toFixed(2);if(mode==='image'&&lastImg)runInference(lastImg,lastImg.naturalWidth,lastImg.naturalHeight);});$('iouSlider').addEventListener('input',function(e){iou=parseFloat(e.target.value);$('iouVal').textContent=iou.toFixed(2);if(mode==='image'&&lastImg)runInference(lastImg,lastImg.naturalWidth,lastImg.naturalHeight);});document.querySelectorAll('.mode-btn').forEach(function(b){b.addEventListener('click',function(){setMode(b.getAttribute('data-mode'));});});$('startCam').addEventListener('click',startCamera);$('stopCam').addEventListener('click',function(){stopCamera();setStatus('Camera stopped','on');});wireMediapipeEmbed();renderLandmarkRef();}
 wire();
 loadModel();
 })();
 </script>
-</body>
+<script data-pplx-inline-edit>
+(function () {
+  if (window === window.top) return;
+
+  const allowedParentOrigins = ["https://www.perplexity.ai","https://perplexity.ai","https://testing.perplexity.ai","https://staging.perplexity.ai","https://*.preview.i.perplexity.ai","http://perplexity.localhost","http://localhost:1420","http://127.0.0.1:1420","http://localhost:3000","http://127.0.0.1:3000","http://localhost:5173","http://127.0.0.1:5173"];
+  const MAX_FONT_BYTES = 500 * 1024;
+  const MAX_TOTAL_FONT_BYTES = 2 * 1024 * 1024;
+  let scrollForwarding = false;
+  let scrollRaf = 0;
+  let trustedTopOrigin = null;
+
+  // Allow entries like "https://*.preview.i.perplexity.ai" — the wildcard
+  // matches a single DNS label (no dots), so "https://*.foo" cannot stretch
+  // across multiple labels.
+  function matchesAllowedOrigin(origin) {
+    if (!origin) return false;
+    for (const entry of allowedParentOrigins) {
+      if (!entry.includes("*")) {
+        if (entry === origin) return true;
+        continue;
+      }
+      const pattern = new RegExp(
+        "^" +
+          entry.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^.]+") +
+          "$",
+      );
+      if (pattern.test(origin)) return true;
+    }
+    return false;
+  }
+
+  // Trust decision: when the sender is same-origin-visible (event.origin is a
+  // real origin like https://www.perplexity.ai) we trust event.origin directly.
+  // When event.origin is "null" (opaque broker srcdoc), we fall back to the
+  // broker's stamped `parentOrigin` to identify the top window. The fallback
+  // is claim-only — we rely on the browser's native `targetOrigin` enforcement
+  // on the response path (see postToTrustedTop) to ensure replies can't be
+  // delivered to anyone but the actual top window of that claimed origin.
+  function getTrustedParentOrigin(event) {
+    const forwardedParentOrigin =
+      typeof event.data.parentOrigin === "string" ? event.data.parentOrigin : null;
+    const parentOrigin = event.origin === "null" ? forwardedParentOrigin : event.origin;
+    return matchesAllowedOrigin(parentOrigin) ? parentOrigin : null;
+  }
+
+  // All responses go to window.top with targetOrigin = the allowlisted origin.
+  // An attacker that iframes us inside their own null-origin broker can claim
+  // any parentOrigin they like, but the browser will drop the reply whenever
+  // the real top's origin doesn't match — so the screenshot never leaves.
+  function postToTrustedTop(message) {
+    if (!trustedTopOrigin) return;
+    try {
+      window.top.postMessage(message, trustedTopOrigin);
+    } catch (_error) {}
+  }
+
+  function inlineAll(original, clone) {
+    if (original.nodeType !== 1 || clone.nodeType !== 1) return;
+
+    try {
+      const computedStyle = getComputedStyle(original);
+      // cssText on a computed style is the serialized declaration in modern
+      // Chromium/Safari — a single read beats enumerating ~400 longhand
+      // properties. Firefox returns "" here, so we fall back on empty.
+      const serialized = computedStyle.cssText;
+      if (serialized) {
+        clone.style.cssText = serialized;
+      } else {
+        const parts = new Array(computedStyle.length);
+        for (let index = 0; index < computedStyle.length; index += 1) {
+          const property = computedStyle[index];
+          parts[index] = `${property}:${computedStyle.getPropertyValue(property)};`;
+        }
+        clone.style.cssText = parts.join("");
+      }
+    } catch (_error) {}
+
+    const originalChildren = original.children;
+    const clonedChildren = clone.children;
+    for (
+      let index = 0;
+      index < originalChildren.length && index < clonedChildren.length;
+      index += 1
+    ) {
+      inlineAll(originalChildren[index], clonedChildren[index]);
+    }
+  }
+
+  function extractFontUrl(srcValue) {
+    const matches = [
+      ...srcValue.matchAll(
+        /url\(["']?([^"')]+)["']?\)(?:\s*format\(["']?([^"')]+)["']?\))?/gi,
+      ),
+    ];
+    if (matches.length === 0) return null;
+    const woff2 = matches.find((m) => m[2] && m[2].toLowerCase().includes("woff2"));
+    if (woff2) return woff2[1];
+    const woff = matches.find((m) => m[2] && m[2].toLowerCase().includes("woff"));
+    if (woff) return woff[1];
+    return matches[0][1];
+  }
+
+  // Cache resolved font URL -> data URI across captures. Fonts on a page
+  // essentially never change, and a batch run emits multiple captures back to
+  // back — without this we'd refetch + re-base64 every time.
+  const fontDataUriCache = new Map();
+  const SRC_DECLARATION_RE = /src\s*:\s*[^;}]+/i;
+
+  async function fetchAsDataUri(url) {
+    if (fontDataUriCache.has(url)) return fontDataUriCache.get(url);
+    let dataUri = null;
+    try {
+      const response = await fetch(url, { mode: "cors", credentials: "omit" });
+      if (response.ok) {
+        const blob = await response.blob();
+        if (blob.size <= MAX_FONT_BYTES) {
+          dataUri = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () =>
+              resolve(typeof reader.result === "string" ? reader.result : null);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          });
+        }
+      }
+    } catch (_error) {
+      dataUri = null;
+    }
+    fontDataUriCache.set(url, dataUri);
+    return dataUri;
+  }
+
+  function collectFontFaceRuleTexts() {
+    const rules = [];
+    for (const sheet of document.styleSheets) {
+      let cssRules;
+      try {
+        cssRules = sheet.cssRules;
+      } catch (_error) {
+        continue;
+      }
+      if (!cssRules) continue;
+      for (const rule of cssRules) {
+        const cssText = rule.cssText || "";
+        if (cssText.startsWith("@font-face")) rules.push(cssText);
+      }
+    }
+    return rules;
+  }
+
+  async function buildInlinedFontCss() {
+    const ruleTexts = collectFontFaceRuleTexts();
+    if (ruleTexts.length === 0) return null;
+
+    const resolved = ruleTexts.map((cssText) => {
+      if (!SRC_DECLARATION_RE.test(cssText)) return null;
+      const srcMatch = cssText.match(/src\s*:\s*([^;}]+)[;}]/i);
+      if (!srcMatch) return null;
+      const url = extractFontUrl(srcMatch[1]);
+      if (!url) return null;
+      try {
+        return { cssText, url: new URL(url, document.baseURI).href };
+      } catch (_error) {
+        return null;
+      }
+    });
+
+    const dataUris = await Promise.all(
+      resolved.map((entry) => (entry ? fetchAsDataUri(entry.url) : Promise.resolve(null))),
+    );
+
+    const inlined = [];
+    let totalBytes = 0;
+    for (let index = 0; index < resolved.length; index += 1) {
+      const entry = resolved[index];
+      const dataUri = dataUris[index];
+      if (!entry || !dataUri) continue;
+      const approxBytes = dataUri.length * 0.75;
+      if (totalBytes + approxBytes > MAX_TOTAL_FONT_BYTES) break;
+      totalBytes += approxBytes;
+      inlined.push(entry.cssText.replace(SRC_DECLARATION_RE, `src: url("${dataUri}")`));
+    }
+    return inlined.length > 0 ? inlined.join("\n") : null;
+  }
+
+  function stripExternal(clone) {
+    const images = clone.querySelectorAll("img");
+    for (let index = 0; index < images.length; index += 1) {
+      const src = images[index].getAttribute("src");
+      if (src && !src.startsWith("data:")) images[index].removeAttribute("src");
+    }
+
+    const elements = clone.querySelectorAll("*");
+    for (let index = 0; index < elements.length; index += 1) {
+      const style = elements[index].style.cssText;
+      if (style && style.includes("url(")) {
+        elements[index].style.cssText = style.replace(
+          /url\(["']?(?!data:)[^)"']*["']?\)/gi,
+          "none",
+        );
+      }
+    }
+  }
+
+  function emitScroll() {
+    scrollRaf = 0;
+    if (!scrollForwarding) return;
+    postToTrustedTop({
+      type: "INLINE_EDIT_SCROLL",
+      scrollX: window.scrollX,
+      scrollY: window.scrollY,
+    });
+  }
+
+  window.addEventListener(
+    "scroll",
+    function () {
+      if (!scrollForwarding || scrollRaf) return;
+      scrollRaf = requestAnimationFrame(emitScroll);
+    },
+    { passive: true, capture: true },
+  );
+
+  async function handleCaptureRequest(event) {
+    const requestId = event.data.requestId;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    function postResult(dataUrl) {
+      postToTrustedTop({
+        type: "INLINE_EDIT_SCREENSHOT_RESULT",
+        requestId,
+        dataUrl,
+        scrollX,
+        scrollY,
+      });
+    }
+
+    try {
+      // Wait for any pending web fonts to resolve so both inline metrics and
+      // the @font-face inlining below see the same loaded faces.
+      if (document.fonts && document.fonts.ready) {
+        try {
+          await document.fonts.ready;
+        } catch (_error) {}
+      }
+
+      const clone = document.documentElement.cloneNode(true);
+      inlineAll(document.documentElement, clone);
+
+      const removedNodes = clone.querySelectorAll("script,link[rel=\"stylesheet\"],style");
+      for (let index = 0; index < removedNodes.length; index += 1) {
+        removedNodes[index].remove();
+      }
+
+      stripExternal(clone);
+
+      // Re-embed web fonts as data-URI @font-face rules so the SVG rasterizer
+      // can resolve them — external font URLs aren't fetched during
+      // foreignObject rendering, which would otherwise force a fallback face
+      // and change text metrics.
+      const inlinedFontCss = await buildInlinedFontCss();
+      if (inlinedFontCss) {
+        const styleEl = document.createElement("style");
+        styleEl.textContent = inlinedFontCss;
+        const head = clone.querySelector("head");
+        if (head) head.appendChild(styleEl);
+        else clone.insertBefore(styleEl, clone.firstChild);
+      }
+
+      const html = new XMLSerializer().serializeToString(clone);
+      const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+        '<foreignObject width="100%" height="100%">' +
+        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden">` +
+        `<div style="position:relative;left:-${scrollX}px;top:-${scrollY}px">` +
+        html +
+        "</div></div></foreignObject></svg>";
+      const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      const image = new Image();
+      image.onload = function () {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(image, 0, 0);
+        postResult(canvas.toDataURL("image/png"));
+      };
+      image.onerror = function () {
+        postResult(null);
+      };
+      image.src = svgUrl;
+    } catch (_error) {
+      postResult(null);
+    }
+  }
+
+  window.addEventListener("message", function (event) {
+    if (!event.data) return;
+    // Only accept messages from the direct parent frame. Blocks sibling /
+    // unrelated-window postMessage senders that could otherwise reach us.
+    if (event.source !== window.parent) return;
+
+    const trustedParentOrigin = getTrustedParentOrigin(event);
+    if (!trustedParentOrigin) return;
+    trustedTopOrigin = trustedParentOrigin;
+
+    if (event.data.type === "INLINE_EDIT_SCROLL_START") {
+      scrollForwarding = true;
+      emitScroll();
+      return;
+    }
+
+    if (event.data.type === "INLINE_EDIT_SCROLL_STOP") {
+      scrollForwarding = false;
+      if (scrollRaf) cancelAnimationFrame(scrollRaf);
+      scrollRaf = 0;
+      return;
+    }
+
+    if (event.data.type !== "INLINE_EDIT_CAPTURE_REQUEST") return;
+
+    handleCaptureRequest(event);
+  });
+})();
+
+
+</script></body>
 </html>
