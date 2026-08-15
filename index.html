@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>XAge · Pediatric Hand Landmark Detection</title>
 
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
@@ -17,7 +17,6 @@
   --black:#111;
   --white:#FFF;
   --gray:#666;
-  --blue:#0066CC;
 }
 
 *,*::before,*::after{
@@ -28,7 +27,7 @@
 
 body{
   min-height:100vh;
-  font-family:"Helvetica Neue","Inter",Helvetica,Arial,sans-serif;
+  font-family:'Helvetica Neue','Inter','Helvetica','Arial',sans-serif;
   font-size:16px;
   line-height:var(--lh);
   color:var(--black);
@@ -60,7 +59,7 @@ header{
 .tagline{
   font-size:18px;
   color:var(--gray);
-  max-width:65ch;
+  max-width:60ch;
 }
 
 .grid{
@@ -162,8 +161,6 @@ input[type=range]{
 }
 
 .btn{
-  display:inline-block;
-  text-decoration:none;
   border:2px solid var(--black);
   background:var(--white);
   color:var(--black);
@@ -197,7 +194,6 @@ input[type=range]{
   align-items:center;
   justify-content:center;
   background:var(--black);
-  overflow:hidden;
 }
 
 canvas{
@@ -271,12 +267,11 @@ video{
 }
 
 .stat-v{
-  font-size:32px;
+  font-size:36px;
   font-weight:900;
   line-height:1;
   color:var(--red);
   margin-bottom:4px;
-  overflow-wrap:anywhere;
 }
 
 .stat-k{
@@ -291,7 +286,7 @@ video{
   border-top:2px solid var(--black);
   padding-top:12px;
   margin-bottom:24px;
-  max-height:340px;
+  max-height:280px;
   overflow-y:auto;
 }
 
@@ -299,21 +294,16 @@ video{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:12px;
   padding:8px 0;
   border-bottom:1px solid #ddd;
 }
 
 .det-badge{
+  background:var(--red);
   color:var(--white);
   padding:4px 8px;
   font-size:13px;
   font-weight:900;
-}
-
-.det-muted{
-  font-size:13px;
-  color:var(--gray);
 }
 
 .disclaimer{
@@ -419,16 +409,9 @@ footer{
 
 @media(max-width:900px){
   :root{--margin:24px;}
-
-  .grid,
-  .controls,
-  .compare .cmp-grid{
-    grid-template-columns:1fr;
-  }
-
-  .stats{
-    grid-template-columns:1fr;
-  }
+  .grid{grid-template-columns:1fr;}
+  .controls{grid-template-columns:1fr;}
+  .compare .cmp-grid{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -439,9 +422,9 @@ footer{
 <header>
   <div class="logo">XAge</div>
   <div class="tagline">
-    Pediatric hand X-ray landmark detection. A deep-learning model that detects
-    one hand and localizes 17 anatomical reference points to support standardized
-    analysis for future automated bone-age estimation.
+    Pediatric hand X-ray landmark detection. A deep-learning model that identifies
+    one hand and 17 anatomical reference points to support standardized research
+    workflows for future bone-age estimation.
   </div>
 </header>
 
@@ -459,14 +442,13 @@ footer{
   <h4>Model Notes</h4>
 
   <div class="notes">
-    YOLO26s-Pose model trained on pediatric hand radiographs.
-    It predicts <strong>one hand bounding box</strong> and
-    <strong>17 anatomical landmarks</strong>. The landmarks are not
-    individual object classes and do not receive separate boxes.
+    YOLO26s-Pose model trained to detect one hand and predict 17 anatomical
+    landmarks on pediatric hand X-rays. The blue rectangle is a single hand
+    detection box. The colored circles and lines are the 17 predicted landmarks.
+    They are not separate object boxes.
   </div>
 
   <h4 style="margin-top:24px;">Landmark Reference (17)</h4>
-
   <div class="notes" id="landmarkRef"></div>
 </aside>
 
@@ -477,12 +459,7 @@ footer{
     <strong>Click or drag</strong> a pediatric hand X-ray image here
   </div>
 
-  <input
-    id="fileInput"
-    type="file"
-    class="hide"
-    accept="image/*"
-  >
+  <input id="fileInput" type="file" class="hide" accept="image/*">
 </section>
 
 <section id="videoPane" class="hide">
@@ -490,12 +467,7 @@ footer{
     <strong>Click or drag</strong> a video file here
   </div>
 
-  <input
-    id="videoInput"
-    type="file"
-    class="hide"
-    accept="video/*"
-  >
+  <input id="videoInput" type="file" class="hide" accept="video/*">
 
   <div class="cam-btns">
     <button id="playVid" class="btn primary" disabled>Play</button>
@@ -513,8 +485,7 @@ footer{
 <div class="controls">
   <div class="control">
     <label>
-      Hand confidence:
-      <span id="confVal">0.25</span>
+      Confidence: <span id="confVal">0.25</span>
     </label>
 
     <input
@@ -529,15 +500,14 @@ footer{
 
   <div class="control">
     <label>
-      IoU (NMS):
-      <span id="iouVal">0.45</span>
+      IoU (NMS): <span id="iouVal">0.45</span>
     </label>
 
     <input
       id="iouSlider"
       type="range"
-      min="0.10"
-      max="0.90"
+      min="0.1"
+      max="0.9"
       step="0.05"
       value="0.45"
     >
@@ -561,7 +531,7 @@ footer{
 <div class="stats">
   <div class="stat">
     <div id="statNotes" class="stat-v">0</div>
-    <div class="stat-k">Visible Landmarks</div>
+    <div class="stat-k">Landmarks Detected</div>
   </div>
 
   <div class="stat">
@@ -584,36 +554,45 @@ footer{
   <h3>Comparison · MediaPipe 3D Hand Pose</h3>
 
   <p>
-    XAge analyzes pediatric hand X-rays and predicts a 2D hand box plus 17
-    custom radiographic landmarks. MediaPipe analyzes normal RGB hand images
-    and predicts 21 general-purpose 3D hand landmarks. The systems have
-    different input types, landmark definitions, and intended use cases.
+    XAge detects 17 custom 2D radiographic landmarks from a pediatric hand X-ray.
+    MediaPipe detects a different set of 21 general hand landmarks from RGB webcam
+    images and estimates relative 3D hand pose. These systems have different inputs,
+    landmark definitions, and use cases.
   </p>
 
   <div class="cmp-grid">
+
     <div class="cmp-card">
-      <h5>XAge (this app)</h5>
-      <p>Radiograph-based landmark detector for pediatric bone-age research.</p>
+      <h5>XAge</h5>
+
+      <p>
+        Radiograph-based hand localization and landmark detection for bone-age
+        research workflows.
+      </p>
+
       <ul>
         <li>Input: pediatric hand X-ray</li>
-        <li>Output: one hand box + 17 radiographic landmarks</li>
-        <li>Backbone: YOLO26s-Pose exported to ONNX</li>
+        <li>Output: 1 hand box + 17 custom 2D landmarks</li>
         <li>Runtime: ONNX Runtime Web</li>
         <li>Use case: research-only anatomical standardization</li>
       </ul>
     </div>
 
     <div class="cmp-card">
-      <h5>MediaPipe Hands (3D)</h5>
-      <p>Real-time RGB hand-pose regression for interaction applications.</p>
+      <h5>MediaPipe Hands</h5>
+
+      <p>
+        Real-time RGB hand-pose estimation for gesture and interaction applications.
+      </p>
+
       <ul>
-        <li>Input: RGB webcam or normal hand photograph</li>
-        <li>Output: 21 three-dimensional hand points</li>
-        <li>Model: hand detector + landmark regressor</li>
+        <li>Input: RGB webcam or photograph</li>
+        <li>Output: 21 general hand points with relative depth</li>
         <li>Runtime: TensorFlow.js / WebGL / WASM</li>
-        <li>Use case: gestures, AR, sign language, interaction</li>
+        <li>Use case: AR, gestures, sign language, interaction</li>
       </ul>
     </div>
+
   </div>
 
   <div class="cmp-actions">
@@ -650,17 +629,18 @@ footer{
   ></iframe>
 
   <p style="margin-top:12px;font-size:12px;color:var(--gray);">
-    Note: MediaPipe uses 21 generic RGB-hand landmarks. XAge uses 17 custom
-    radiographic landmarks from hand X-rays, so the two keypoint sets should
-    not be interpreted as equivalent.
+    Note: the embedded MediaPipe demo requests webcam access and is hosted by Google.
+    Some browsers block camera access inside cross-origin iframes. If the embedded
+    view is blank or camera access is denied, open the demo in a separate tab.
   </p>
 </section>
 
 <div class="disclaimer">
   <strong>Research and educational use only.</strong>
-  XAge is a research prototype for pediatric hand-radiograph landmark
-  localization. It is not a certified medical device and must never be used
-  for clinical diagnosis, treatment, or bone-age reporting.
+  XAge is a research prototype for pediatric hand-radiograph landmark localization.
+  It is not a certified medical device and must never be used for clinical diagnosis,
+  treatment, or bone-age reporting. Always defer to qualified clinicians and validated
+  clinical tools for decisions.
 </div>
 
 <footer>
@@ -674,10 +654,6 @@ footer{
 
 "use strict";
 
-/* =========================================================
-   DOM and application state
-   ========================================================= */
-
 var $ = function(id){
   return document.getElementById(id);
 };
@@ -690,145 +666,131 @@ var session = null;
 var mode = "image";
 var stream = null;
 var running = false;
-var videoRunning = false;
 
 var conf = 0.25;
-var iouThreshold = 0.45;
+var iou = 0.45;
 
-var cameraAnimationId = null;
-var videoAnimationId = null;
-var lastImage = null;
+var rafId = null;
+var lastImg = null;
+
+var vidRunning = false;
+var vidRaf = null;
 
 var inputIsFp16 = false;
 
-/* =========================================================
-   Model configuration
+/*
+  IMPORTANT MODEL CONTRACT
 
-   IMPORTANT:
-   - classes has ONLY ONE detection class: hand.
-   - keypoints has 17 pose landmarks.
-   ========================================================= */
+  This application expects a YOLO pose ONNX export where each prediction has:
+
+  [cx, cy, width, height, hand_score,
+   kpt1_x, kpt1_y, kpt1_conf,
+   ...
+   kpt17_x, kpt17_y, kpt17_conf]
+
+  Your model has:
+  - 1 class: hand
+  - 17 keypoints
+  - 56 values per detection:
+      4 box values + 1 class score + (17 * 3) keypoint values
+*/
 
 var MODEL = {
   path: "./best.onnx",
   inputSize: 640,
-
   classes: ["hand"],
+  keypointCount: 17,
 
-  landmarkNames: [
-    "Landmark 1",
-    "Landmark 2",
-    "Landmark 3",
-    "Landmark 4",
-    "Landmark 5",
-    "Landmark 6",
-    "Landmark 7",
-    "Landmark 8",
-    "Landmark 9",
-    "Landmark 10",
-    "Landmark 11",
-    "Landmark 12",
-    "Landmark 13",
-    "Landmark 14",
-    "Landmark 15",
-    "Landmark 16",
-    "Landmark 17"
+  keypointNames: [
+    "Anatomical landmark 1",
+    "Anatomical landmark 2",
+    "Anatomical landmark 3",
+    "Anatomical landmark 4",
+    "Anatomical landmark 5",
+    "Anatomical landmark 6",
+    "Anatomical landmark 7",
+    "Anatomical landmark 8",
+    "Anatomical landmark 9",
+    "Anatomical landmark 10",
+    "Anatomical landmark 11",
+    "Anatomical landmark 12",
+    "Anatomical landmark 13",
+    "Anatomical landmark 14",
+    "Anatomical landmark 15",
+    "Anatomical landmark 16",
+    "Anatomical landmark 17"
   ],
 
-  landmarkColors: [
-    "#FF0000",
-    "#FF6A00",
-    "#FFC400",
-    "#00A651",
-    "#00AEEF",
-    "#0066CC",
-    "#6A00F4",
-    "#C000C0",
-    "#FF1493",
-    "#8B4513",
-    "#008080",
-    "#1E90FF",
-    "#DC143C",
-    "#228B22",
-    "#FF8C00",
-    "#4B0082",
-    "#111111"
+  keypointColors: [
+    "#FF1744",
+    "#FF6D00",
+    "#FFD600",
+    "#76FF03",
+    "#00E676",
+    "#00B0FF",
+    "#2979FF",
+    "#651FFF",
+    "#D500F9",
+    "#F50057",
+    "#FF5252",
+    "#FF9100",
+    "#AEEA00",
+    "#1DE9B6",
+    "#00B8D4",
+    "#3D5AFE",
+    "#C51162"
   ],
 
-  handBoxColor: "#0066CC"
+  /*
+    Visual-only skeleton edges.
+
+    These links are for showing the hand structure on screen.
+    They are not a claim that this is the official RHPE anatomical
+    landmark topology. Replace the links only after confirming
+    the exact RHPE landmark index order from the source dataset/paper.
+  */
+  skeleton: [
+    [0, 1], [1, 2],
+    [3, 4], [4, 5],
+    [6, 7], [7, 8],
+    [9, 10], [10, 11],
+    [12, 13], [13, 14],
+    [14, 15], [15, 16],
+
+    [2, 5], [5, 8], [8, 11], [11, 14], [14, 16]
+  ]
 };
 
-/*
-  Landmark skeleton edges.
 
-  IMPORTANT:
-  The RHPE dataset's exact anatomical graph is custom. This list is
-  intentionally a visual scaffold, not a claim that every connection is
-  an anatomical joint. Replace it later with the official RHPE landmark
-  connectivity specification if you obtain the original annotation schema.
-
-  Point indices are zero-based: 0 through 16.
-*/
-var SKELETON_EDGES = [
-  [0, 1], [1, 2],
-  [3, 4], [4, 5],
-  [6, 7], [7, 8],
-  [9, 10], [10, 11],
-  [12, 13], [13, 14],
-  [14, 15], [15, 16],
-
-  [2, 5], [5, 8], [8, 11], [11, 14],
-  [14, 16]
-];
-
-/* =========================================================
-   Small utility functions
-   ========================================================= */
-
-function className(index){
-  return MODEL.classes[index] || "hand";
-}
-
-function landmarkName(index){
-  return MODEL.landmarkNames[index] || ("Landmark " + (index + 1));
-}
-
-function landmarkColor(index){
-  return MODEL.landmarkColors[index % MODEL.landmarkColors.length];
-}
-
-function setStatus(text, type){
+function setStatus(text, cls){
   $("statusText").textContent = text;
-  $("dot").className = "status-dot " + (type || "");
+  $("dot").className = "status-dot " + (cls || "");
 }
+
 
 function setProgress(percent){
-  var wrapper = $("progressWrap");
+  var wrap = $("progressWrap");
   var bar = $("progressBar");
 
   if(percent === null){
-    wrapper.classList.add("hide");
-    return;
+    wrap.classList.add("hide");
+  }else{
+    wrap.classList.remove("hide");
+    bar.style.width = percent + "%";
   }
-
-  wrapper.classList.remove("hide");
-  bar.style.width = percent + "%";
 }
 
-function clamp(value, minValue, maxValue){
-  return Math.max(minValue, Math.min(maxValue, value));
-}
 
-function f32ToF16(value){
-  var f32 = new Float32Array(1);
-  var i32 = new Int32Array(f32.buffer);
+function f32tof16(value){
+  var floatArray = new Float32Array(1);
+  floatArray[0] = value;
 
-  f32[0] = value;
+  var intArray = new Int32Array(floatArray.buffer);
+  var bits = intArray[0];
 
-  var x = i32[0];
-  var sign = (x >> 16) & 0x8000;
-  var exponent = ((x >> 23) & 0xff) - 127 + 15;
-  var mantissa = x & 0x7fffff;
+  var sign = (bits >> 16) & 0x8000;
+  var exponent = ((bits >> 23) & 0xff) - 127 + 15;
+  var mantissa = bits & 0x7fffff;
 
   if(exponent <= 0){
     if(exponent < -10){
@@ -846,26 +808,6 @@ function f32ToF16(value){
   return sign | (exponent << 10) | (mantissa >> 13);
 }
 
-function toFloat32Array(array){
-  if(array instanceof Float32Array){
-    return array;
-  }
-
-  var output = new Float32Array(array.length);
-
-  for(var i = 0; i < array.length; i++){
-    output[i] = array[i];
-  }
-
-  return output;
-}
-
-/* =========================================================
-   IndexedDB model caching
-   ========================================================= */
-
-var CACHE_NAME = "xage-model-v2";
-var CACHE_KEY = "best-onnx-yolo26s-pose";
 
 async function getCachedModel(){
   if(!("indexedDB" in window)){
@@ -874,7 +816,7 @@ async function getCachedModel(){
 
   try{
     var db = await new Promise(function(resolve, reject){
-      var request = indexedDB.open(CACHE_NAME, 1);
+      var request = indexedDB.open("xage-model-v2", 1);
 
       request.onupgradeneeded = function(){
         request.result.createObjectStore("models");
@@ -893,7 +835,7 @@ async function getCachedModel(){
     var store = transaction.objectStore("models");
 
     var data = await new Promise(function(resolve, reject){
-      var request = store.get(CACHE_KEY);
+      var request = store.get("best-onnx-pose-v2");
 
       request.onsuccess = function(){
         resolve(request.result);
@@ -909,10 +851,11 @@ async function getCachedModel(){
     return data ? data.buffer : null;
 
   }catch(error){
-    console.warn("IndexedDB cache read failed:", error);
+    console.warn("Model cache read failed:", error);
     return null;
   }
 }
+
 
 async function setCachedModel(buffer){
   if(!("indexedDB" in window)){
@@ -921,7 +864,7 @@ async function setCachedModel(buffer){
 
   try{
     var db = await new Promise(function(resolve, reject){
-      var request = indexedDB.open(CACHE_NAME, 1);
+      var request = indexedDB.open("xage-model-v2", 1);
 
       request.onupgradeneeded = function(){
         request.result.createObjectStore("models");
@@ -937,9 +880,10 @@ async function setCachedModel(buffer){
     });
 
     var transaction = db.transaction("models", "readwrite");
+
     transaction.objectStore("models").put(
-      { buffer: buffer },
-      CACHE_KEY
+      {buffer: buffer},
+      "best-onnx-pose-v2"
     );
 
     await new Promise(function(resolve, reject){
@@ -955,20 +899,18 @@ async function setCachedModel(buffer){
     db.close();
 
   }catch(error){
-    console.warn("IndexedDB cache write failed:", error);
+    console.warn("Model cache write failed:", error);
   }
 }
+
 
 async function downloadModel(url){
   var response = await fetch(url);
 
   if(!response.ok){
     throw new Error(
-      "Model download failed (" +
-      response.status +
-      ") for " +
-      url +
-      ". Confirm that best.onnx is in the same folder as this HTML file."
+      "Model download failed (" + response.status + ") for " + url +
+      ". Ensure best.onnx is deployed beside this HTML file."
     );
   }
 
@@ -979,14 +921,14 @@ async function downloadModel(url){
   var chunks = [];
 
   while(true){
-    var result = await reader.read();
+    var readResult = await reader.read();
 
-    if(result.done){
+    if(readResult.done){
       break;
     }
 
-    chunks.push(result.value);
-    received += result.value.length;
+    chunks.push(readResult.value);
+    received += readResult.value.length;
 
     if(total > 0){
       setProgress(Math.round(received / total * 100));
@@ -996,15 +938,12 @@ async function downloadModel(url){
   return await new Blob(chunks).arrayBuffer();
 }
 
-/* =========================================================
-   ONNX model loading
-   ========================================================= */
 
 async function loadModel(){
   try{
     if(typeof ort === "undefined"){
       setStatus(
-        "ONNX Runtime failed to load. Check internet/CDN availability.",
+        "ONNX Runtime failed to load. Check the CDN/network connection.",
         "err"
       );
       return;
@@ -1017,20 +956,20 @@ async function loadModel(){
     var modelBuffer = await getCachedModel();
 
     if(modelBuffer){
-      setStatus("Loading model from cache...", "busy");
+      setStatus("Loading ONNX model from cache...", "busy");
     }else{
-      setStatus("Downloading ONNX model...", "busy");
+      setStatus("Downloading ONNX pose model...", "busy");
       setProgress(0);
 
       modelBuffer = await downloadModel(MODEL.path);
 
       setProgress(null);
-      setStatus("Caching ONNX model...", "busy");
 
+      setStatus("Caching ONNX model...", "busy");
       await setCachedModel(modelBuffer);
     }
 
-    setStatus("Initializing ONNX session...", "busy");
+    setStatus("Initializing ONNX Runtime...", "busy");
 
     session = await ort.InferenceSession.create(
       modelBuffer,
@@ -1040,22 +979,22 @@ async function loadModel(){
       }
     );
 
-    var inputMeta = session.inputMetadata[
-      session.inputNames[0]
-    ];
-
+    var inputMetadata = session.inputMetadata[session.inputNames[0]];
     var inputType = String(
-      inputMeta.type || inputMeta.dataType || ""
+      inputMetadata.type || inputMetadata.dataType || ""
     );
 
     inputIsFp16 = /float16|fp16/i.test(inputType);
 
-    console.log("ONNX input name:", session.inputNames[0]);
-    console.log("ONNX input metadata:", inputMeta);
-    console.log("ONNX output names:", session.outputNames);
-    console.log("ONNX output metadata:", session.outputMetadata);
+    var outputMetadata = session.outputMetadata[session.outputNames[0]];
 
-    setStatus("Ready — select an X-ray image.", "on");
+    console.log("ONNX input metadata:", inputMetadata);
+    console.log("ONNX output metadata:", outputMetadata);
+
+    setStatus(
+      "Ready — upload a hand X-ray image",
+      "on"
+    );
 
   }catch(error){
     console.error(error);
@@ -1067,9 +1006,6 @@ async function loadModel(){
   }
 }
 
-/* =========================================================
-   YOLO preprocessing
-   ========================================================= */
 
 function preprocess(source, sourceWidth, sourceHeight){
   var inputSize = MODEL.inputSize;
@@ -1079,25 +1015,22 @@ function preprocess(source, sourceWidth, sourceHeight){
     inputSize / sourceHeight
   );
 
-  var resizedWidth = Math.round(sourceWidth * scale);
-  var resizedHeight = Math.round(sourceHeight * scale);
+  var newWidth = Math.round(sourceWidth * scale);
+  var newHeight = Math.round(sourceHeight * scale);
 
-  var padX = Math.floor((inputSize - resizedWidth) / 2);
-  var padY = Math.floor((inputSize - resizedHeight) / 2);
+  var padX = Math.floor((inputSize - newWidth) / 2);
+  var padY = Math.floor((inputSize - newHeight) / 2);
 
   var offscreen = document.createElement("canvas");
   offscreen.width = inputSize;
   offscreen.height = inputSize;
 
-  var offctx = offscreen.getContext("2d");
+  var offCtx = offscreen.getContext("2d");
 
-  /*
-    YOLO letterbox padding value approximately equals 114 / 255.
-  */
-  offctx.fillStyle = "rgb(114,114,114)";
-  offctx.fillRect(0, 0, inputSize, inputSize);
+  offCtx.fillStyle = "#727272";
+  offCtx.fillRect(0, 0, inputSize, inputSize);
 
-  offctx.drawImage(
+  offCtx.drawImage(
     source,
     0,
     0,
@@ -1105,165 +1038,59 @@ function preprocess(source, sourceWidth, sourceHeight){
     sourceHeight,
     padX,
     padY,
-    resizedWidth,
-    resizedHeight
+    newWidth,
+    newHeight
   );
 
-  var imageData = offctx.getImageData(
+  var rgba = offCtx.getImageData(
     0,
     0,
     inputSize,
     inputSize
   ).data;
 
-  var area = inputSize * inputSize;
-  var floatData = new Float32Array(area * 3);
+  var pixelCount = inputSize * inputSize;
+  var tensorData = new Float32Array(pixelCount * 3);
 
-  for(var pixelIndex = 0; pixelIndex < area; pixelIndex++){
-    floatData[pixelIndex] = imageData[pixelIndex * 4] / 255.0;
-    floatData[area + pixelIndex] = imageData[pixelIndex * 4 + 1] / 255.0;
-    floatData[area * 2 + pixelIndex] = imageData[pixelIndex * 4 + 2] / 255.0;
+  for(var pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++){
+    tensorData[pixelIndex] = rgba[pixelIndex * 4] / 255.0;
+    tensorData[pixelCount + pixelIndex] = rgba[pixelIndex * 4 + 1] / 255.0;
+    tensorData[pixelCount * 2 + pixelIndex] = rgba[pixelIndex * 4 + 2] / 255.0;
   }
 
-  var inputTensor;
+  var tensor;
 
   if(inputIsFp16){
-    var fp16Data = new Uint16Array(area * 3);
+    var float16Data = new Uint16Array(pixelCount * 3);
 
-    for(var i = 0; i < floatData.length; i++){
-      fp16Data[i] = f32ToF16(floatData[i]);
+    for(var index = 0; index < tensorData.length; index++){
+      float16Data[index] = f32tof16(tensorData[index]);
     }
 
-    inputTensor = new ort.Tensor(
+    tensor = new ort.Tensor(
       "float16",
-      fp16Data,
+      float16Data,
       [1, 3, inputSize, inputSize]
     );
 
   }else{
-    inputTensor = new ort.Tensor(
+    tensor = new ort.Tensor(
       "float32",
-      floatData,
+      tensorData,
       [1, 3, inputSize, inputSize]
     );
   }
 
   return {
-    tensor: inputTensor,
+    tensor: tensor,
     scale: scale,
     padX: padX,
     padY: padY
   };
 }
 
-/* =========================================================
-   One-class pose-model postprocessing
 
-   Expected common pose output layouts:
-   - [1, 56, N]  => channels first
-   - [1, N, 56]  => predictions first
-
-   56 values:
-   [cx, cy, w, h, hand_conf,
-    kpt1_x, kpt1_y, kpt1_conf,
-    ...
-    kpt17_x, kpt17_y, kpt17_conf]
-   ========================================================= */
-
-function parsePosePredictionRow(values, pre){
-  var numberOfKeypoints = 17;
-  var expectedLength = 5 + numberOfKeypoints * 3;
-
-  if(values.length < expectedLength){
-    return null;
-  }
-
-  var centerX = values[0];
-  var centerY = values[1];
-  var width = values[2];
-  var height = values[3];
-  var score = values[4];
-
-  if(!Number.isFinite(score) || score < conf){
-    return null;
-  }
-
-  var x1 = (centerX - width / 2 - pre.padX) / pre.scale;
-  var y1 = (centerY - height / 2 - pre.padY) / pre.scale;
-  var x2 = (centerX + width / 2 - pre.padX) / pre.scale;
-  var y2 = (centerY + height / 2 - pre.padY) / pre.scale;
-
-  var keypoints = [];
-
-  for(var keypointIndex = 0; keypointIndex < numberOfKeypoints; keypointIndex++){
-    var start = 5 + keypointIndex * 3;
-
-    var rawX = values[start];
-    var rawY = values[start + 1];
-    var keypointScore = values[start + 2];
-
-    var originalX = (rawX - pre.padX) / pre.scale;
-    var originalY = (rawY - pre.padY) / pre.scale;
-
-    keypoints.push({
-      x: originalX,
-      y: originalY,
-      score: Number.isFinite(keypointScore) ? keypointScore : 0
-    });
-  }
-
-  return {
-    box: [x1, y1, x2, y2],
-    score: score,
-    classId: 0,
-    keypoints: keypoints
-  };
-}
-
-function parseOutputChannelsFirst(data, channels, predictions, pre){
-  var detections = [];
-
-  for(var predictionIndex = 0; predictionIndex < predictions; predictionIndex++){
-    var values = new Float32Array(channels);
-
-    for(var channelIndex = 0; channelIndex < channels; channelIndex++){
-      values[channelIndex] = data[
-        channelIndex * predictions + predictionIndex
-      ];
-    }
-
-    var detection = parsePosePredictionRow(values, pre);
-
-    if(detection){
-      detections.push(detection);
-    }
-  }
-
-  return detections;
-}
-
-function parseOutputPredictionsFirst(data, predictions, channels, pre){
-  var detections = [];
-
-  for(var predictionIndex = 0; predictionIndex < predictions; predictionIndex++){
-    var start = predictionIndex * channels;
-
-    var values = data.slice(
-      start,
-      start + channels
-    );
-
-    var detection = parsePosePredictionRow(values, pre);
-
-    if(detection){
-      detections.push(detection);
-    }
-  }
-
-  return detections;
-}
-
-function boxIou(boxA, boxB){
+function iouCalc(boxA, boxB){
   var x1 = Math.max(boxA[0], boxB[0]);
   var y1 = Math.max(boxA[1], boxB[1]);
   var x2 = Math.min(boxA[2], boxB[2]);
@@ -1283,6 +1110,7 @@ function boxIou(boxA, boxB){
   return intersection / (areaA + areaB - intersection + 1e-9);
 }
 
+
 function nmsPose(detections){
   detections.sort(function(a, b){
     return b.score - a.score;
@@ -1291,240 +1119,210 @@ function nmsPose(detections){
   var kept = [];
 
   for(var i = 0; i < detections.length; i++){
-    var shouldKeep = true;
+    var candidate = detections[i];
+    var keep = true;
 
     for(var j = 0; j < kept.length; j++){
-      /*
-        All predictions represent the same class: hand.
-        Suppress duplicate hand boxes only.
-      */
-      if(boxIou(detections[i].box, kept[j].box) > iouThreshold){
-        shouldKeep = false;
+      if(iouCalc(candidate.box, kept[j].box) > iou){
+        keep = false;
         break;
       }
     }
 
-    if(shouldKeep){
-      kept.push(detections[i]);
+    if(keep){
+      kept.push(candidate);
     }
   }
 
   return kept;
 }
 
-function postprocessPose(output, pre){
-  var dims = output.dims;
-  var data = toFloat32Array(output.data);
 
-  if(!dims || dims.length !== 3){
-    throw new Error(
-      "Unexpected ONNX pose output shape: " + JSON.stringify(dims)
-    );
+function getOutputValue(data, layout, predictionIndex, featureIndex, numPredictions, numFeatures){
+  if(layout === "features_first"){
+    return data[featureIndex * numPredictions + predictionIndex];
   }
 
-  var dim1 = Number(dims[1]);
-  var dim2 = Number(dims[2]);
+  return data[predictionIndex * numFeatures + featureIndex];
+}
 
-  var expectedChannels = 56;
-  var rawDetections;
 
-  /*
-    Typical Ultralytics pose output is [1, 56, N].
-  */
-  if(dim1 >= expectedChannels && dim1 < dim2){
-    rawDetections = parseOutputChannelsFirst(
-      data,
-      dim1,
-      dim2,
-      pre
-    );
+function postprocessPose(output, preprocessInfo){
+  var dims = output.dims;
+  var data = output.data;
 
   /*
-    Alternative ONNX layout: [1, N, 56].
+    Handle both expected layout forms:
+    1. [1, 56, N] => features-first
+    2. [1, N, 56] => predictions-first
   */
-  }else if(dim2 >= expectedChannels && dim2 < dim1){
-    rawDetections = parseOutputPredictionsFirst(
-      data,
-      dim1,
-      dim2,
-      pre
-    );
+  var numPredictions;
+  var numFeatures;
+  var layout;
 
-  /*
-    Fallback: assume whichever dimension is near 56 is channels.
-  */
-  }else if(dim1 === expectedChannels){
-    rawDetections = parseOutputChannelsFirst(
-      data,
-      dim1,
-      dim2,
-      pre
-    );
+  if(dims.length === 3 && dims[1] >= 56 && dims[1] < dims[2]){
+    numFeatures = dims[1];
+    numPredictions = dims[2];
+    layout = "features_first";
 
-  }else if(dim2 === expectedChannels){
-    rawDetections = parseOutputPredictionsFirst(
-      data,
-      dim1,
-      dim2,
-      pre
-    );
+  }else if(dims.length === 3 && dims[2] >= 56){
+    numPredictions = dims[1];
+    numFeatures = dims[2];
+    layout = "predictions_first";
 
   }else{
     throw new Error(
-      "Cannot identify pose output layout. " +
-      "Expected 56 pose values per prediction, but received shape " +
-      JSON.stringify(dims) +
-      ". Check your ONNX export."
+      "Unexpected ONNX pose output shape: [" +
+      dims.join(", ") +
+      "]. Expected [1,56,N] or [1,N,56]."
     );
   }
 
-  return nmsPose(rawDetections);
-}
+  var keypointStartIndex = 5;
+  var expectedFeatureCount = keypointStartIndex + MODEL.keypointCount * 3;
 
-/* =========================================================
-   Drawing: one hand box + 17 landmarks
-   ========================================================= */
+  if(numFeatures < expectedFeatureCount){
+    throw new Error(
+      "ONNX output has " + numFeatures + " features per prediction, but " +
+      expectedFeatureCount + " are required for 1 hand class and 17 keypoints."
+    );
+  }
 
-function isVisibleKeypoint(keypoint){
-  return keypoint &&
-         Number.isFinite(keypoint.x) &&
-         Number.isFinite(keypoint.y) &&
-         Number.isFinite(keypoint.score) &&
-         keypoint.score >= 0.05;
-}
+  var detections = [];
 
-function drawSkeleton(detection, imageWidth){
-  var points = detection.keypoints || [];
+  for(var predictionIndex = 0; predictionIndex < numPredictions; predictionIndex++){
+    var cx = getOutputValue(
+      data,
+      layout,
+      predictionIndex,
+      0,
+      numPredictions,
+      numFeatures
+    );
 
-  ctx.save();
+    var cy = getOutputValue(
+      data,
+      layout,
+      predictionIndex,
+      1,
+      numPredictions,
+      numFeatures
+    );
 
-  ctx.lineWidth = Math.max(2, imageWidth / 400);
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+    var boxWidth = getOutputValue(
+      data,
+      layout,
+      predictionIndex,
+      2,
+      numPredictions,
+      numFeatures
+    );
 
-  SKELETON_EDGES.forEach(function(edge, edgeIndex){
-    var pointA = points[edge[0]];
-    var pointB = points[edge[1]];
+    var boxHeight = getOutputValue(
+      data,
+      layout,
+      predictionIndex,
+      3,
+      numPredictions,
+      numFeatures
+    );
 
-    if(!isVisibleKeypoint(pointA) || !isVisibleKeypoint(pointB)){
-      return;
+    /*
+      One class only:
+      feature index 4 is the confidence/score for "hand".
+    */
+    var handScore = getOutputValue(
+      data,
+      layout,
+      predictionIndex,
+      4,
+      numPredictions,
+      numFeatures
+    );
+
+    if(handScore < conf){
+      continue;
     }
 
-    /*
-      Multicolor connection scheme for visual distinction.
-    */
-    ctx.strokeStyle = MODEL.landmarkColors[
-      edgeIndex % MODEL.landmarkColors.length
-    ];
+    var x1 = (
+      cx - boxWidth / 2 - preprocessInfo.padX
+    ) / preprocessInfo.scale;
 
-    ctx.beginPath();
-    ctx.moveTo(pointA.x, pointA.y);
-    ctx.lineTo(pointB.x, pointB.y);
-    ctx.stroke();
-  });
+    var y1 = (
+      cy - boxHeight / 2 - preprocessInfo.padY
+    ) / preprocessInfo.scale;
 
-  ctx.restore();
-}
+    var x2 = (
+      cx + boxWidth / 2 - preprocessInfo.padX
+    ) / preprocessInfo.scale;
 
-function drawLandmarks(detection, imageWidth){
-  var points = detection.keypoints || [];
-  var pointRadius = Math.max(4, imageWidth / 210);
-  var labelFontSize = Math.max(11, Math.round(imageWidth / 52));
+    var y2 = (
+      cy + boxHeight / 2 - preprocessInfo.padY
+    ) / preprocessInfo.scale;
 
-  ctx.save();
+    var keypoints = [];
 
-  ctx.font = "700 " + labelFontSize + "px Helvetica, Arial, sans-serif";
-  ctx.textBaseline = "middle";
+    for(var landmarkIndex = 0; landmarkIndex < MODEL.keypointCount; landmarkIndex++){
+      var offset = keypointStartIndex + landmarkIndex * 3;
 
-  points.forEach(function(point, index){
-    if(!isVisibleKeypoint(point)){
-      return;
+      var keypointX = getOutputValue(
+        data,
+        layout,
+        predictionIndex,
+        offset,
+        numPredictions,
+        numFeatures
+      );
+
+      var keypointY = getOutputValue(
+        data,
+        layout,
+        predictionIndex,
+        offset + 1,
+        numPredictions,
+        numFeatures
+      );
+
+      var keypointConfidence = getOutputValue(
+        data,
+        layout,
+        predictionIndex,
+        offset + 2,
+        numPredictions,
+        numFeatures
+      );
+
+      /*
+        Convert keypoint coordinates from 640x640 letterboxed
+        model input back to original image coordinates.
+      */
+      keypoints.push({
+        x: (keypointX - preprocessInfo.padX) / preprocessInfo.scale,
+        y: (keypointY - preprocessInfo.padY) / preprocessInfo.scale,
+        score: keypointConfidence
+      });
     }
 
-    var color = landmarkColor(index);
+    detections.push({
+      box: [x1, y1, x2, y2],
+      score: handScore,
+      classId: 0,
+      keypoints: keypoints
+    });
+  }
 
-    /*
-      Black outer ring improves contrast on a radiograph.
-    */
-    ctx.fillStyle = "#000";
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, pointRadius + 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(point.x, point.y, pointRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    /*
-      Show the landmark index next to each point.
-    */
-    var label = String(index + 1);
-    var labelX = point.x + pointRadius + 4;
-    var labelY = point.y - pointRadius - 2;
-
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#FFF";
-    ctx.strokeText(label, labelX, labelY);
-
-    ctx.fillStyle = "#000";
-    ctx.fillText(label, labelX, labelY);
-  });
-
-  ctx.restore();
+  return nmsPose(detections);
 }
 
-function drawHandBox(detection, imageWidth, imageHeight){
-  var box = detection.box;
 
-  var x1 = clamp(box[0], 0, imageWidth);
-  var y1 = clamp(box[1], 0, imageHeight);
-  var x2 = clamp(box[2], 0, imageWidth);
-  var y2 = clamp(box[3], 0, imageHeight);
-
-  var width = Math.max(1, x2 - x1);
-  var height = Math.max(1, y2 - y1);
-
-  var lineWidth = Math.max(2, imageWidth / 340);
-  var fontSize = Math.max(14, Math.round(imageWidth / 40));
-
-  ctx.save();
-
-  ctx.strokeStyle = MODEL.handBoxColor;
-  ctx.lineWidth = lineWidth;
-  ctx.strokeRect(x1, y1, width, height);
-
-  ctx.font = "700 " + fontSize + "px Helvetica, Arial, sans-serif";
-
-  var label = "hand " + detection.score.toFixed(2);
-  var textWidth = ctx.measureText(label).width;
-
-  var labelHeight = fontSize + 8;
-  var labelY = Math.max(0, y1 - labelHeight);
-
-  ctx.fillStyle = MODEL.handBoxColor;
-  ctx.fillRect(
-    x1,
-    labelY,
-    textWidth + 12,
-    labelHeight
-  );
-
-  ctx.fillStyle = "#FFF";
-  ctx.fillText(
-    label,
-    x1 + 6,
-    labelY + fontSize + 1
-  );
-
-  ctx.restore();
+function clip(value, minimum, maximum){
+  return Math.max(minimum, Math.min(maximum, value));
 }
+
 
 function draw(source, sourceWidth, sourceHeight, detections){
   canvas.width = sourceWidth;
   canvas.height = sourceHeight;
-
-  ctx.clearRect(0, 0, sourceWidth, sourceHeight);
 
   ctx.drawImage(
     source,
@@ -1534,46 +1332,173 @@ function draw(source, sourceWidth, sourceHeight, detections){
     sourceHeight
   );
 
-  /*
-    Each detection is ONE hand instance.
-    Draw one box around the hand, then 17 keypoints.
-  */
+  var boxLineWidth = Math.max(2, sourceWidth / 360);
+  var pointRadius = Math.max(4, sourceWidth / 210);
+  var fontSize = Math.max(13, Math.round(sourceWidth / 42));
+
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
   (detections || []).forEach(function(detection){
-    drawHandBox(detection, sourceWidth, sourceHeight);
-    drawSkeleton(detection, sourceWidth);
-    drawLandmarks(detection, sourceWidth);
+
+    /*
+      Draw exactly ONE box for the hand object.
+      This is not one box for every landmark.
+    */
+    var x1 = clip(detection.box[0], 0, sourceWidth);
+    var y1 = clip(detection.box[1], 0, sourceHeight);
+    var x2 = clip(detection.box[2], 0, sourceWidth);
+    var y2 = clip(detection.box[3], 0, sourceHeight);
+
+    var boxWidth = Math.max(1, x2 - x1);
+    var boxHeight = Math.max(1, y2 - y1);
+
+    ctx.strokeStyle = "#0057E7";
+    ctx.lineWidth = boxLineWidth;
+    ctx.strokeRect(x1, y1, boxWidth, boxHeight);
+
+    var label = "hand " + (detection.score * 100).toFixed(1) + "%";
+
+    ctx.font = "bold " + fontSize + "px Helvetica, Arial, sans-serif";
+
+    var textWidth = ctx.measureText(label).width;
+    var textHeight = fontSize + 8;
+
+    ctx.fillStyle = "#0057E7";
+
+    ctx.fillRect(
+      x1,
+      Math.max(0, y1 - textHeight),
+      textWidth + 12,
+      textHeight
+    );
+
+    ctx.fillStyle = "#FFFFFF";
+
+    ctx.fillText(
+      label,
+      x1 + 6,
+      Math.max(fontSize, y1 - 6)
+    );
+
+    /*
+      Draw illustrative skeletal connections.
+      Do not interpret these lines as separate detections.
+    */
+    ctx.lineWidth = Math.max(1.5, sourceWidth / 500);
+
+    MODEL.skeleton.forEach(function(edge){
+      var first = detection.keypoints[edge[0]];
+      var second = detection.keypoints[edge[1]];
+
+      if(!first || !second){
+        return;
+      }
+
+      if(
+        first.score < 0.05 ||
+        second.score < 0.05
+      ){
+        return;
+      }
+
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.62)";
+      ctx.beginPath();
+      ctx.moveTo(
+        clip(first.x, 0, sourceWidth),
+        clip(first.y, 0, sourceHeight)
+      );
+      ctx.lineTo(
+        clip(second.x, 0, sourceWidth),
+        clip(second.y, 0, sourceHeight)
+      );
+      ctx.stroke();
+    });
+
+    /*
+      Draw each of the 17 points independently.
+    */
+    detection.keypoints.forEach(function(keypoint, index){
+      if(keypoint.score < 0.05){
+        return;
+      }
+
+      var x = clip(keypoint.x, 0, sourceWidth);
+      var y = clip(keypoint.y, 0, sourceHeight);
+
+      var color = MODEL.keypointColors[index];
+
+      ctx.beginPath();
+      ctx.fillStyle = "#000000";
+      ctx.arc(
+        x,
+        y,
+        pointRadius + 2,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.fillStyle = color;
+      ctx.arc(
+        x,
+        y,
+        pointRadius,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      ctx.font =
+        "bold " +
+        Math.max(10, Math.round(fontSize * 0.72)) +
+        "px Helvetica, Arial, sans-serif";
+
+      var labelX = x + pointRadius + 3;
+      var labelY = y - pointRadius - 2;
+
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#FFFFFF";
+
+      ctx.strokeText(
+        String(index + 1),
+        labelX,
+        labelY
+      );
+
+      ctx.fillStyle = "#000000";
+
+      ctx.fillText(
+        String(index + 1),
+        labelX,
+        labelY
+      );
+    });
   });
 }
 
-/* =========================================================
-   Statistics and landmark table
-   ========================================================= */
 
 function updateStats(detections, inferenceMs){
-  var bestDetection = null;
+  var detectedLandmarks = 0;
+  var maxHandConfidence = 0;
 
   (detections || []).forEach(function(detection){
-    if(!bestDetection || detection.score > bestDetection.score){
-      bestDetection = detection;
-    }
-  });
+    maxHandConfidence = Math.max(
+      maxHandConfidence,
+      detection.score
+    );
 
-  var visibleLandmarks = 0;
-  var handConfidence = null;
-
-  if(bestDetection){
-    handConfidence = bestDetection.score;
-
-    (bestDetection.keypoints || []).forEach(function(keypoint){
-      if(isVisibleKeypoint(keypoint)){
-        visibleLandmarks++;
+    detection.keypoints.forEach(function(keypoint){
+      if(keypoint.score >= 0.05){
+        detectedLandmarks++;
       }
     });
-  }
+  });
 
-  $("statNotes").textContent = visibleLandmarks;
-  $("statConf").textContent = handConfidence !== null
-    ? (handConfidence * 100).toFixed(1) + "%"
+  $("statNotes").textContent = detectedLandmarks;
+  $("statConf").textContent = maxHandConfidence
+    ? (maxHandConfidence * 100).toFixed(1) + "%"
     : "—";
 
   $("statMs").textContent = inferenceMs
@@ -1583,61 +1508,53 @@ function updateStats(detections, inferenceMs){
   var list = $("detList");
   list.innerHTML = "";
 
-  if(!bestDetection){
-    var empty = document.createElement("div");
-    empty.className = "det-muted";
-    empty.textContent =
-      "No hand detected above the selected confidence threshold.";
-    list.appendChild(empty);
+  if(!detections || detections.length === 0){
+    list.innerHTML =
+      "<div class='det-row'><span>No hand detected at the selected confidence threshold.</span></div>";
+
     return;
   }
 
-  var handRow = document.createElement("div");
-  handRow.className = "det-row";
+  detections.forEach(function(detection){
+    var handRow = document.createElement("div");
+    handRow.className = "det-row";
 
-  var handBadge = document.createElement("span");
-  handBadge.className = "det-badge";
-  handBadge.style.background = MODEL.handBoxColor;
-  handBadge.textContent = "1 hand detected";
+    var handBadge = document.createElement("span");
+    handBadge.className = "det-badge";
+    handBadge.style.background = "#0057E7";
+    handBadge.textContent = "Hand";
 
-  var handScore = document.createElement("span");
-  handScore.textContent =
-    "confidence: " + (bestDetection.score * 100).toFixed(1) + "%";
+    var handScore = document.createElement("span");
+    handScore.textContent =
+      (detection.score * 100).toFixed(1) + "%";
 
-  handRow.appendChild(handBadge);
-  handRow.appendChild(handScore);
+    handRow.appendChild(handBadge);
+    handRow.appendChild(handScore);
 
-  list.appendChild(handRow);
+    list.appendChild(handRow);
 
-  (bestDetection.keypoints || []).forEach(function(keypoint, index){
-    var row = document.createElement("div");
-    row.className = "det-row";
+    detection.keypoints.forEach(function(keypoint, index){
+      var row = document.createElement("div");
+      row.className = "det-row";
 
-    var badge = document.createElement("span");
-    badge.className = "det-badge";
-    badge.style.background = landmarkColor(index);
-    badge.textContent = landmarkName(index);
+      var badge = document.createElement("span");
+      badge.className = "det-badge";
+      badge.style.background = MODEL.keypointColors[index];
+      badge.textContent = "Landmark " + (index + 1);
 
-    var score = document.createElement("span");
+      var score = document.createElement("span");
+      score.textContent = keypoint.score >= 0.05
+        ? (keypoint.score * 100).toFixed(1) + "%"
+        : "Not visible";
 
-    if(isVisibleKeypoint(keypoint)){
-      score.textContent =
-        "visible · " + (keypoint.score * 100).toFixed(1) + "%";
-    }else{
-      score.textContent = "low confidence / not visible";
-      score.className = "det-muted";
-    }
+      row.appendChild(badge);
+      row.appendChild(score);
 
-    row.appendChild(badge);
-    row.appendChild(score);
-
-    list.appendChild(row);
+      list.appendChild(row);
+    });
   });
 }
 
-/* =========================================================
-   Main inference function
-   ========================================================= */
 
 async function runInference(source, sourceWidth, sourceHeight){
   if(!session){
@@ -1650,27 +1567,26 @@ async function runInference(source, sourceWidth, sourceHeight){
   }
 
   try{
-    var pre = preprocess(
+    var preprocessed = preprocess(
       source,
       sourceWidth,
       sourceHeight
     );
 
+    var feeds = {};
+    feeds[session.inputNames[0]] = preprocessed.tensor;
+
     var startTime = performance.now();
 
-    var feeds = {};
-    feeds[session.inputNames[0]] = pre.tensor;
+    var outputs = await session.run(feeds);
 
-    var outputMap = await session.run(feeds);
+    var elapsedMs = performance.now() - startTime;
 
-    var inferenceMs = performance.now() - startTime;
-
-    var outputName = session.outputNames[0];
-    var outputTensor = outputMap[outputName];
+    var output = outputs[session.outputNames[0]];
 
     var detections = postprocessPose(
-      outputTensor,
-      pre
+      output,
+      preprocessed
     );
 
     draw(
@@ -1682,13 +1598,13 @@ async function runInference(source, sourceWidth, sourceHeight){
 
     updateStats(
       detections,
-      inferenceMs
+      elapsedMs
     );
 
     setStatus(
       detections.length
-        ? "Hand and anatomical landmarks detected."
-        : "No hand detected. Try lowering hand confidence.",
+        ? "Hand pose detected"
+        : "No hand detected — lower confidence threshold or try another X-ray",
       "on"
     );
 
@@ -1704,11 +1620,8 @@ async function runInference(source, sourceWidth, sourceHeight){
   }
 }
 
-/* =========================================================
-   Input handling
-   ========================================================= */
 
-function handleImageFile(file){
+function handleFile(file){
   if(!file){
     return;
   }
@@ -1716,7 +1629,7 @@ function handleImageFile(file){
   var image = new Image();
 
   image.onload = function(){
-    lastImage = image;
+    lastImg = image;
 
     runInference(
       image,
@@ -1726,25 +1639,12 @@ function handleImageFile(file){
   };
 
   image.onerror = function(){
-    setStatus("Could not load image.", "err");
+    setStatus("Could not load the selected image.", "err");
   };
 
   image.src = URL.createObjectURL(file);
 }
 
-function stopVideo(){
-  videoRunning = false;
-
-  if(videoAnimationId){
-    cancelAnimationFrame(videoAnimationId);
-  }
-
-  if(video && video.src && !video.paused){
-    try{
-      video.pause();
-    }catch(error){}
-  }
-}
 
 function handleVideoFile(file){
   if(!file){
@@ -1786,8 +1686,9 @@ function handleVideoFile(file){
   };
 }
 
+
 async function videoLoop(){
-  if(!videoRunning){
+  if(!vidRunning){
     return;
   }
 
@@ -1803,8 +1704,9 @@ async function videoLoop(){
     );
   }
 
-  videoAnimationId = requestAnimationFrame(videoLoop);
+  vidRaf = requestAnimationFrame(videoLoop);
 }
+
 
 async function playVideo(){
   if(!video.src){
@@ -1814,9 +1716,12 @@ async function playVideo(){
   try{
     await video.play();
 
-    videoRunning = true;
+    vidRunning = true;
 
-    setStatus("Video landmark detection running.", "on");
+    setStatus(
+      "Video pose detection running.",
+      "on"
+    );
 
     videoLoop();
 
@@ -1826,9 +1731,23 @@ async function playVideo(){
   }
 }
 
-/* =========================================================
-   Live camera handling
-   ========================================================= */
+
+function stopVideo(){
+  vidRunning = false;
+
+  if(vidRaf){
+    cancelAnimationFrame(vidRaf);
+  }
+
+  if(video && video.src && !video.paused){
+    try{
+      video.pause();
+    }catch(error){
+      console.warn(error);
+    }
+  }
+}
+
 
 async function cameraLoop(){
   if(!running){
@@ -1843,16 +1762,17 @@ async function cameraLoop(){
     );
   }
 
-  cameraAnimationId = requestAnimationFrame(cameraLoop);
+  rafId = requestAnimationFrame(cameraLoop);
 }
+
 
 async function startCamera(){
   try{
     stopVideo();
 
     stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: "environment"
+      video:{
+        facingMode:"environment"
       }
     });
 
@@ -1865,13 +1785,15 @@ async function startCamera(){
     $("startCam").disabled = true;
     $("stopCam").disabled = false;
 
-    setStatus("Live landmark detection running.", "on");
+    setStatus(
+      "Live pose detection running.",
+      "on"
+    );
 
     cameraLoop();
 
   }catch(error){
     console.error(error);
-
     setStatus(
       "Camera access denied or unavailable.",
       "err"
@@ -1879,11 +1801,12 @@ async function startCamera(){
   }
 }
 
+
 function stopCamera(){
   running = false;
 
-  if(cameraAnimationId){
-    cancelAnimationFrame(cameraAnimationId);
+  if(rafId){
+    cancelAnimationFrame(rafId);
   }
 
   if(stream){
@@ -1898,9 +1821,6 @@ function stopCamera(){
   $("stopCam").disabled = true;
 }
 
-/* =========================================================
-   Mode switching and UI
-   ========================================================= */
 
 function setMode(newMode){
   mode = newMode;
@@ -1918,20 +1838,24 @@ function setMode(newMode){
 
   if(newMode === "image"){
     $("imagePane").classList.remove("hide");
+
     stopCamera();
     stopVideo();
 
   }else if(newMode === "video"){
     $("videoPane").classList.remove("hide");
+
     stopCamera();
 
   }else{
     $("camPane").classList.remove("hide");
+
     stopVideo();
   }
 }
 
-function renderLandmarkReference(){
+
+function renderLandmarkRef(){
   var reference = $("landmarkRef");
 
   if(!reference){
@@ -1939,21 +1863,16 @@ function renderLandmarkReference(){
   }
 
   var html =
-    '<ol style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.65;">';
+    "<ol style='margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6;'>";
 
-  for(var i = 0; i < MODEL.landmarkNames.length; i++){
+  for(var index = 0; index < MODEL.keypointCount; index++){
     html +=
-      '<li>' +
-      '<span style="' +
-      'display:inline-block;' +
-      'width:10px;' +
-      'height:10px;' +
-      'background:' + landmarkColor(i) + ';' +
-      'margin-right:6px;' +
-      'vertical-align:middle;' +
-      '"></span>' +
-      MODEL.landmarkNames[i] +
-      '</li>';
+      "<li>" +
+      "<span style='display:inline-block;width:10px;height:10px;" +
+      "background:" + MODEL.keypointColors[index] + ";" +
+      "margin-right:6px;vertical-align:middle;'></span>" +
+      MODEL.keypointNames[index] +
+      "</li>";
   }
 
   html += "</ol>";
@@ -1961,7 +1880,8 @@ function renderLandmarkReference(){
   reference.innerHTML = html;
 }
 
-function wireMediaPipeEmbed(){
+
+function wireMediapipeEmbed(){
   var button = $("toggleMediapipeEmbed");
   var frame = $("mediapipeFrame");
 
@@ -1982,7 +1902,8 @@ function wireMediaPipeEmbed(){
   });
 }
 
-function wireEvents(){
+
+function wire(){
   var dropZone = $("dropZone");
   var fileInput = $("fileInput");
 
@@ -1991,7 +1912,7 @@ function wireEvents(){
   });
 
   fileInput.addEventListener("change", function(event){
-    handleImageFile(event.target.files[0]);
+    handleFile(event.target.files[0]);
   });
 
   dropZone.addEventListener("dragover", function(event){
@@ -2009,7 +1930,7 @@ function wireEvents(){
     dropZone.classList.remove("drag");
 
     if(event.dataTransfer.files.length){
-      handleImageFile(event.dataTransfer.files[0]);
+      handleFile(event.dataTransfer.files[0]);
     }
   });
 
@@ -2055,25 +1976,25 @@ function wireEvents(){
 
     $("confVal").textContent = conf.toFixed(2);
 
-    if(mode === "image" && lastImage){
+    if(mode === "image" && lastImg){
       runInference(
-        lastImage,
-        lastImage.naturalWidth,
-        lastImage.naturalHeight
+        lastImg,
+        lastImg.naturalWidth,
+        lastImg.naturalHeight
       );
     }
   });
 
   $("iouSlider").addEventListener("input", function(event){
-    iouThreshold = parseFloat(event.target.value);
+    iou = parseFloat(event.target.value);
 
-    $("iouVal").textContent = iouThreshold.toFixed(2);
+    $("iouVal").textContent = iou.toFixed(2);
 
-    if(mode === "image" && lastImage){
+    if(mode === "image" && lastImg){
       runInference(
-        lastImage,
-        lastImage.naturalWidth,
-        lastImage.naturalHeight
+        lastImg,
+        lastImg.naturalWidth,
+        lastImg.naturalHeight
       );
     }
   });
@@ -2084,22 +2005,22 @@ function wireEvents(){
     });
   });
 
-  $("startCam").addEventListener("click", startCamera);
+  $("startCam").addEventListener(
+    "click",
+    startCamera
+  );
 
   $("stopCam").addEventListener("click", function(){
     stopCamera();
     setStatus("Camera stopped.", "on");
   });
 
-  wireMediaPipeEmbed();
-  renderLandmarkReference();
+  wireMediapipeEmbed();
+  renderLandmarkRef();
 }
 
-/* =========================================================
-   Start application
-   ========================================================= */
 
-wireEvents();
+wire();
 loadModel();
 
 })();
