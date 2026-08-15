@@ -1,12 +1,12 @@
-provide me the html code using this approach: "<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CADNote · Canadian Banknote Detection</title>
+<title>XAge · Pediatric Hand Landmark Detection</title>
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
 <style>
-:root{--maxw:1200px;--margin:48px;--lh:24px;--red:#FF6A00;--gold:#FFC400;--black:#111;--white:#FFF;--gray:#666;}
+:root{--maxw:1200px;--margin:48px;--lh:24px;--red:#C8102E;--gold:#FFC400;--black:#111;--white:#FFF;--gray:#666;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 body{min-height:100vh;font-family:'Helvetica Neue','Inter','Helvetica','Arial',sans-serif;font-size:16px;line-height:var(--lh);color:var(--black);background:var(--white);-webkit-font-smoothing:antialiased;}
 .container{max-width:var(--maxw);margin:0 auto;padding:0 var(--margin);}
@@ -21,7 +21,7 @@ h4{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em
 .mode-btn.active{background:var(--red);color:var(--white);border-color:var(--red);}
 .notes{font-size:14px;color:var(--gray);}
 .drop-zone{border:2px dashed var(--gray);padding:48px 24px;text-align:center;cursor:pointer;margin-bottom:24px;transition:all 0.2s;}
-.drop-zone:hover,.drop-zone.drag{border-color:var(--red);background:rgba(255,106,0,0.05);}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--red);background:rgba(200,16,46,0.05);}
 .drop-zone strong{color:var(--red);}
 .hide{display:none!important;}
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;}
@@ -46,36 +46,32 @@ video{display:none;}
 .stat{border:2px solid var(--black);padding:16px;}
 .stat-v{font-size:36px;font-weight:900;line-height:1;color:var(--red);margin-bottom:4px;}
 .stat-k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray);}
-.detlist{border-top:2px solid var(--black);padding-top:12px;margin-bottom:24px;}
+.detlist{border-top:2px solid var(--black);padding-top:12px;margin-bottom:24px;max-height:280px;overflow-y:auto;}
 .det-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #ddd;}
 .det-badge{background:var(--red);color:var(--white);padding:4px 8px;font-size:13px;font-weight:900;}
-.disclaimer{border-left:4px solid var(--red);padding-left:24px;margin:24px 0 48px;color:var(--gray);font-size:14px;}
+.disclaimer{border-left:4px solid var(--red);padding-left:24px;margin:24px 0 24px;color:var(--gray);font-size:14px;}
 .disclaimer strong{color:var(--black);}
+.compare{border:2px solid var(--black);padding:24px;margin:24px 0 48px;background:#fafafa;}
+.compare h3{font-size:20px;font-weight:900;color:var(--red);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.02em;}
+.compare p{font-size:14px;color:var(--gray);margin-bottom:16px;line-height:1.6;}
+.compare .cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.compare .cmp-card{border:1px solid var(--black);padding:16px;background:var(--white);}
+.compare .cmp-card h5{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;}
+.compare .cmp-card p{font-size:13px;color:var(--black);margin-bottom:8px;line-height:1.5;}
+.compare .cmp-card ul{list-style:none;font-size:12px;color:var(--gray);}
+.compare .cmp-card li{padding:2px 0;}
+.compare .cmp-card li::before{content:"— ";color:var(--red);font-weight:900;}
+.compare .cmp-actions{display:flex;flex-wrap:wrap;gap:12px;}
+.compare-frame{width:100%;height:520px;border:2px solid var(--black);background:var(--black);margin-top:16px;}
 footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-size:12px;color:var(--gray);}
-.chatbox{border:2px solid var(--black);margin-top:16px;display:flex;flex-direction:column;}
-.chat-select{padding:12px;border-bottom:2px solid var(--black);}
-.chat-select select{width:100%;padding:8px;font-size:14px;font-family:inherit;border:1px solid var(--black);background:var(--white);color:var(--black);}
-.chat-info{padding:12px;font-size:12px;line-height:1.5;color:var(--black);border-bottom:1px solid #ddd;background:#fafafa;}
-.chat-info .ci-title{font-weight:900;color:var(--red);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;font-size:13px;}
-.chat-info .ci-row{margin-bottom:3px;}
-.chat-info .ci-k{font-weight:700;}
-.chat-log{padding:12px;max-height:260px;overflow-y:auto;font-size:13px;line-height:1.5;}
-.chat-msg{margin-bottom:10px;}
-.chat-msg .who{font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--gray);display:block;margin-bottom:2px;}
-.chat-msg.user .who{color:var(--black);}
-.chat-msg.bot .who{color:var(--red);}
-.chat-input-row{display:flex;border-top:2px solid var(--black);}
-.chat-input-row input{flex:1;border:none;padding:12px;font-size:14px;font-family:inherit;outline:none;}
-.chat-input-row button{border:none;background:var(--red);color:var(--white);padding:0 20px;font-weight:900;text-transform:uppercase;cursor:pointer;font-size:12px;letter-spacing:0.05em;}
-.chat-input-row button:disabled{opacity:0.4;cursor:not-allowed;}
-@media(max-width:900px){:root{--margin:24px;}.grid{grid-template-columns:1fr;}.controls{grid-template-columns:1fr;}}
+@media(max-width:900px){:root{--margin:24px;}.grid{grid-template-columns:1fr;}.controls{grid-template-columns:1fr;}.compare .cmp-grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
 <div class="container">
 <header>
-<div class="logo">CADNote</div>
-<div class="tagline">Real-time Canadian polymer banknote detection. Underdevelopment project by Derrick Mirindi, David Sinkhonde and Frederic Mirindi.</div>
+<div class="logo">XAge</div>
+<div class="tagline">Pediatric hand X-ray landmark detection. A deep-learning model that automatically identifies the hand and 17 anatomical reference points to support standardized analysis for automated bone-age estimation.</div>
 </header>
 <div class="grid">
 <aside>
@@ -86,30 +82,13 @@ footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-siz
 <button class="mode-btn" data-mode="camera">Live Camera</button>
 </div>
 <h4>Model Notes</h4>
-<div class="notes">Loading best YOLOv8s model.</div>
-<h4 style="margin-top:24px;">Banknote Assistant</h4>
-<div class="chatbox">
-<div class="chat-select">
-<select id="noteSelect">
-<option value="">Select a banknote to discuss...</option>
-<option value="5">$5 CAD</option>
-<option value="10">$10 CAD</option>
-<option value="20">$20 CAD</option>
-<option value="50">$50 CAD</option>
-<option value="100">$100 CAD</option>
-</select>
-</div>
-<div id="chatInfo" class="chat-info hide"></div>
-<div id="chatLog" class="chat-log"><div class="chat-msg bot"><span class="who">Assistant</span>Select a banknote above, then ask me anything about it.</div></div>
-<div class="chat-input-row">
-<input id="chatText" type="text" placeholder="Ask about this banknote..." autocomplete="off">
-<button id="chatSend">Send</button>
-</div>
-</div>
+<div class="notes">YOLOv8 keypoint / detection model trained to localise the hand and 17 anatomical landmarks on pediatric hand X-rays. Detections are drawn on the input; the landmark table lists each keypoint with confidence.</div>
+<h4 style="margin-top:24px;">Landmark Reference (17)</h4>
+<div class="notes" id="landmarkRef"></div>
 </aside>
 <main>
 <section id="imagePane">
-<div id="dropZone" class="drop-zone"><strong>Click or drag</strong> a Canadian banknote image here</div>
+<div id="dropZone" class="drop-zone"><strong>Click or drag</strong> a pediatric hand X-ray image here</div>
 <input id="fileInput" type="file" class="hide" accept="image/*">
 </section>
 <section id="videoPane" class="hide">
@@ -128,15 +107,52 @@ footer{border-top:2px solid var(--black);padding:32px 0;margin-top:48px;font-siz
 <div id="progressWrap" class="progress hide"><div id="progressBar" class="progress-bar"></div></div>
 <div class="canvas-wrap"><canvas id="canvas" width="640" height="360"></canvas><video id="video" playsinline muted></video></div>
 <div class="stats">
-<div class="stat"><div id="statNotes" class="stat-v">0</div><div class="stat-k">Notes Detected</div></div>
+<div class="stat"><div id="statNotes" class="stat-v">0</div><div class="stat-k">Landmarks Detected</div></div>
 <div class="stat"><div id="statConf" class="stat-v">—</div><div class="stat-k">Max Confidence</div></div>
 <div class="stat"><div id="statMs" class="stat-v">—</div><div class="stat-k">Inference (ms)</div></div>
 </div>
 <div id="detList" class="detlist"></div>
 </main>
 </div>
-<div class="disclaimer"><strong>Research and assistive/educational use only.</strong> This application is not a certified financial or anti-counterfeiting device and must never be used for production banknote authentication, payment validation, or counterfeit determination. Always verify currency using official Bank of Canada guidance and authorized equipment.</div>
-<footer>CADNote · Developed by Derrick Mirindi · David Sinkhonde · Frederic Mirindi</footer>
+
+<section class="compare" id="compareSection">
+<h3>Comparison · MediaPipe 3D Hand Pose</h3>
+<p>Before testing XAge, compare its X-ray-based skeletal landmark detection with Google MediaPipe's live RGB 3D hand-pose demo. Both approaches localise anatomical points on the hand, but they target very different inputs, coordinate spaces, and clinical vs. interaction use cases.</p>
+<div class="cmp-grid">
+<div class="cmp-card">
+<h5>XAge (this app)</h5>
+<p>Radiograph-based landmark detector for pediatric bone-age analysis.</p>
+<ul>
+<li>Input: pediatric hand X-ray (grayscale radiograph)</li>
+<li>Output: hand bounding box + 17 skeletal / epiphyseal landmarks</li>
+<li>Backbone: YOLOv8 exported to ONNX</li>
+<li>Runtime: onnxruntime-web (WASM) in-browser</li>
+<li>Use case: research-only, standardized bone-age assessment</li>
+</ul>
+</div>
+<div class="cmp-card">
+<h5>MediaPipe Hands (3D)</h5>
+<p>Real-time RGB hand-pose regression by Google (TensorFlow.js).</p>
+<ul>
+<li>Input: RGB webcam / photo of a real hand</li>
+<li>Output: 21 3D keypoints (x, y, z) per hand, world coordinates</li>
+<li>Model: BlazePalm detector + hand-landmark regressor</li>
+<li>Runtime: TensorFlow.js (WebGL / WASM)</li>
+<li>Use case: gesture UI, AR, sign language, interaction</li>
+</ul>
+</div>
+</div>
+<div class="cmp-actions">
+<a class="btn primary" href="https://storage.googleapis.com/tfjs-models/demos/hand-pose-detection/index.html?model=mediapipe_hands" target="_blank" rel="noopener">Open MediaPipe 3D Demo</a>
+<button class="btn" id="toggleMediapipeEmbed">Toggle Embedded Demo</button>
+<a class="btn" href="https://blog.tensorflow.org/2021/11/3D-handpose.html" target="_blank" rel="noopener">Read TF Blog Post</a>
+</div>
+<iframe id="mediapipeFrame" class="compare-frame hide" src="" title="MediaPipe 3D Hand Pose Demo" allow="camera; microphone; autoplay" referrerpolicy="no-referrer-when-downgrade"></iframe>
+<p style="margin-top:12px;font-size:12px;color:var(--gray);">Note: the embedded MediaPipe demo requests webcam access and is hosted by Google (storage.googleapis.com). Some browsers block camera access inside cross-origin iframes — if the embedded view is blank or camera is denied, click <em>Open MediaPipe 3D Demo</em> to launch it in its own tab.</p>
+</section>
+
+<div class="disclaimer"><strong>Research and educational use only.</strong> XAge is a research prototype for pediatric hand-radiograph landmark localisation. It is not a certified medical device and must never be used for clinical diagnosis, treatment, or bone-age reporting. Always defer to a qualified radiologist and validated tools for any clinical decision.</div>
+<footer>XAge · Pediatric Hand Landmark Detection · Derrick Mirindi · Frederic Mirindi</footer>
 </div>
 <script>
 (function(){
@@ -144,24 +160,26 @@ var $=function(id){return document.getElementById(id);};
 var canvas=$('canvas'),ctx=canvas.getContext('2d'),video=$('video');
 var session=null,mode='image',stream=null,running=false,conf=0.25,iou=0.45,rafId=null,lastImg=null,vidRunning=false,vidRaf=null;
 var inputIsFp16=false;
-var MODEL={path:'./best.onnx',inputSize:640,classes:['10 CAD','5 CAD','20 CAD','50 CAD','100 CAD','fr_maple_leaf','sign_dep_gov','sign_gov'],colors:['#FF6A00','#0072CE','#00843D','#B10DC9','#FFB300','#111111','#2E2E2E','#8A2BE2']};
-var CACHE_NAME='cadnote-model-v4',CACHE_KEY='best-onnx-v4';
+var MODEL={path:'./best.onnx',inputSize:640,
+classes:['hand','distal_phalanx_1','distal_phalanx_2','distal_phalanx_3','distal_phalanx_4','distal_phalanx_5','middle_phalanx_2','middle_phalanx_3','middle_phalanx_4','middle_phalanx_5','proximal_phalanx_1','proximal_phalanx_2','proximal_phalanx_3','proximal_phalanx_4','proximal_phalanx_5','metacarpal_1','carpal_region','radius_ulna'],
+colors:['#C8102E','#FF6A00','#FFC400','#00843D','#0072CE','#B10DC9','#FF4136','#FF851B','#2ECC40','#39CCCC','#7FDBFF','#001F3F','#F012BE','#85144B','#3D9970','#AAAAAA','#111111','#8A2BE2']};
+var CACHE_NAME='xage-model-v1',CACHE_KEY='best-onnx-v1';
 function clsName(i){return MODEL.classes[i]||('class '+i);}
-function clsColor(i){return MODEL.colors[i]||'#FF6A00';}
+function clsColor(i){return MODEL.colors[i]||'#C8102E';}
 function setStatus(txt,cls){$('statusText').textContent=txt;$('dot').className='status-dot '+(cls||'');}
 function setProgress(pct){var w=$('progressWrap'),b=$('progressBar');if(pct===null){w.classList.add('hide');}else{w.classList.remove('hide');b.style.width=pct+'%';}}
 function f32tof16(val){var f=new Float32Array(1);f[0]=val;var i=new Int32Array(f.buffer)[0];var s=(i>>16)&0x8000;var e=((i>>23)&0xff)-127+15;var m=i&0x7fffff;if(e<=0){if(e<-10)return s;m=(m|0x800000)>>(1-e);return s|(m>>13);}if(e>=31)return s|0x7c00;return s|(e<<10)|(m>>13);}
 async function getCachedModel(){if(!('indexedDB' in window))return null;try{var db=await new Promise(function(res,rej){var r=indexedDB.open(CACHE_NAME,1);r.onupgradeneeded=function(){r.result.createObjectStore('models');};r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});var tx=db.transaction('models','readonly');var store=tx.objectStore('models');var data=await new Promise(function(res,rej){var r=store.get(CACHE_KEY);r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});db.close();return data?data.buffer:null;}catch(e){console.warn('Cache read:',e);return null;}}
 async function setCachedModel(buffer){if(!('indexedDB' in window))return;try{var db=await new Promise(function(res,rej){var r=indexedDB.open(CACHE_NAME,1);r.onupgradeneeded=function(){r.result.createObjectStore('models');};r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});var tx=db.transaction('models','readwrite');tx.objectStore('models').put({buffer:buffer},CACHE_KEY);await new Promise(function(res,rej){tx.oncomplete=function(){res();};tx.onerror=function(){rej(tx.error);};});db.close();}catch(e){console.warn('Cache write:',e);}}
 async function downloadModel(url){var resp=await fetch(url);if(!resp.ok)throw new Error('Model download failed ('+resp.status+') for '+url+'. Ensure best.onnx is uploaded to the repo root.');var total=+resp.headers.get('content-length')||0;var reader=resp.body.getReader();var received=0;var chunks=[];while(true){var r=await reader.read();if(r.done)break;chunks.push(r.value);received+=r.value.length;if(total>0)setProgress(Math.round(received/total*100));}return await new Blob(chunks).arrayBuffer();}
-async function loadModel(){try{if(typeof ort==='undefined'){setStatus('ONNX Runtime failed to load (check network/CDN).','err');return;}ort.env.wasm.numThreads=1;setStatus('Checking cache...','busy');var buffer=null;try{buffer=await getCachedModel();}catch(ce){console.warn('Cache read failed:',ce);buffer=null;}if(buffer){setStatus('Loading from cache...','busy');}else{setStatus('Downloading model...','busy');setProgress(0);buffer=await downloadModel(MODEL.path);setProgress(null);setStatus('Caching model...','busy');await setCachedModel(buffer);}setStatus('Initializing session...','busy');session=await ort.InferenceSession.create(buffer,{executionProviders:['wasm'],graphOptimizationLevel:'all'});try{var meta=session.inputMetadata&&session.inputMetadata[0];var t=meta&&(meta.type||meta.dataType||'');inputIsFp16=/float16|fp16/i.test(String(t));}catch(me){inputIsFp16=false;}setStatus('Ready — select an input','on');}catch(e){var m=String(e&&e.message||e);var friendly='Error: '+m;if(/no such file|404|failed to fetch|download failed/i.test(m)){friendly='Model file not found. Ensure best.onnx is uploaded to the repository root.';}else if(/float16|fp16|does not match expected type/i.test(m)){friendly='Model type mismatch. Try re-exporting best.onnx.';}setStatus(friendly,'err');console.error(e);}}
+async function loadModel(){try{if(typeof ort==='undefined'){setStatus('ONNX Runtime failed to load (check network/CDN).','err');return;}ort.env.wasm.numThreads=1;setStatus('Checking cache...','busy');var buffer=null;try{buffer=await getCachedModel();}catch(ce){console.warn('Cache read failed:',ce);buffer=null;}if(buffer){setStatus('Loading from cache...','busy');}else{setStatus('Downloading model...','busy');setProgress(0);buffer=await downloadModel(MODEL.path);setProgress(null);setStatus('Caching model...','busy');await setCachedModel(buffer);}setStatus('Initializing session...','busy');session=await ort.InferenceSession.create(buffer,{executionProviders:['wasm'],graphOptimizationLevel:'all'});try{var meta=session.inputMetadata&&session.inputMetadata[0];var t=meta&&(meta.type||meta.dataType||'');inputIsFp16=/float16|fp16/i.test(String(t));}catch(me){inputIsFp16=false;}try{var nc=MODEL.classes.length;var outMeta=session.outputMetadata&&session.outputMetadata[0];var dims=outMeta&&(outMeta.shape||outMeta.dims);if(dims&&dims.length>=2){var chan=Number(dims[1]);if(!isNaN(chan)&&chan>4){nc=chan-4;}}console.log('Model classes assumed:',nc);}catch(oe){}setStatus('Ready — select an input','on');}catch(e){var m=String(e&&e.message||e);var friendly='Error: '+m;if(/no such file|404|failed to fetch|download failed/i.test(m)){friendly='Model file not found. Ensure best.onnx is uploaded to the repository root.';}else if(/float16|fp16|does not match expected type/i.test(m)){friendly='Model type mismatch. Try re-exporting best.onnx.';}setStatus(friendly,'err');console.error(e);}}
 function preprocess(source,sw,sh){var S=MODEL.inputSize;var scale=Math.min(S/sw,S/sh);var nw=Math.round(sw*scale),nh=Math.round(sh*scale);var padX=Math.floor((S-nw)/2),padY=Math.floor((S-nh)/2);var off=document.createElement('canvas');off.width=S;off.height=S;var octx=off.getContext('2d');octx.fillStyle='#727272';octx.fillRect(0,0,S,S);octx.drawImage(source,0,0,sw,sh,padX,padY,nw,nh);var img=octx.getImageData(0,0,S,S).data;var area=S*S;var f=new Float32Array(area*3);for(var i=0;i<area;i++){f[i]=img[i*4]/255;f[area+i]=img[i*4+1]/255;f[area*2+i]=img[i*4+2]/255;}var tensor;if(inputIsFp16){var u=new Uint16Array(area*3);for(var k=0;k<f.length;k++){u[k]=f32tof16(f[k]);}tensor=new ort.Tensor('float16',u,[1,3,S,S]);}else{tensor=new ort.Tensor('float32',f,[1,3,S,S]);}return{tensor:tensor,scale:scale,padX:padX,padY:padY};}
 function iouCalc(a,b){var x1=Math.max(a[0],b[0]),y1=Math.max(a[1],b[1]),x2=Math.min(a[2],b[2]),y2=Math.min(a[3],b[3]);var w=Math.max(0,x2-x1),h=Math.max(0,y2-y1);var inter=w*h;var areaA=(a[2]-a[0])*(a[3]-a[1]),areaB=(b[2]-b[0])*(b[3]-b[1]);return inter/(areaA+areaB-inter+1e-9);}
 function nms(boxes){boxes.sort(function(a,b){return b.score-a.score;});var keep=[];for(var i=0;i<boxes.length;i++){var ok=true;for(var j=0;j<keep.length;j++){if(keep[j].cls===boxes[i].cls&&iouCalc(boxes[i].box,keep[j].box)>iou){ok=false;break;}}if(ok)keep.push(boxes[i]);}return keep;}
 function toF32(arr){if(arr instanceof Float32Array)return arr;var out=new Float32Array(arr.length);for(var i=0;i<arr.length;i++){out[i]=arr[i];}return out;}
 function postprocess(output,pre){var dims=output.dims;var data=toF32(output.data);var num=dims[2];var nc=dims[1]-4;if(nc<1)nc=MODEL.classes.length;var boxes=[];for(var i=0;i<num;i++){var best=0,bestc=0;for(var c=0;c<nc;c++){var v=data[(4+c)*num+i];if(v>best){best=v;bestc=c;}}if(best<conf)continue;var cx=data[0*num+i],cy=data[1*num+i],w=data[2*num+i],h=data[3*num+i];var x1=(cx-w/2-pre.padX)/pre.scale;var y1=(cy-h/2-pre.padY)/pre.scale;var x2=(cx+w/2-pre.padX)/pre.scale;var y2=(cy+h/2-pre.padY)/pre.scale;boxes.push({box:[x1,y1,x2,y2],score:best,cls:bestc});}return nms(boxes);}
-function draw(source,sw,sh,dets){canvas.width=sw;canvas.height=sh;ctx.drawImage(source,0,0,sw,sh);ctx.lineWidth=Math.max(2,sw/300);ctx.font='bold '+Math.max(14,Math.round(sw/40))+'px Helvetica,Arial,sans-serif';(dets||[]).forEach(function(d){var color=clsColor(d.cls);var x=d.box[0],y=d.box[1],w=d.box[2]-d.box[0],h=d.box[3]-d.box[1];ctx.strokeStyle=color;ctx.strokeRect(x,y,w,h);var label=clsName(d.cls)+' '+(d.score*100).toFixed(0)+'%';var tw=ctx.measureText(label).width;var th=Math.max(16,Math.round(sw/32));ctx.fillStyle=color;ctx.fillRect(x,y-th,tw+10,th);ctx.fillStyle='#fff';ctx.fillText(label,x+5,y-5);});}
-function updateStats(dets,ms){var maxc=0;(dets||[]).forEach(function(d){if(d.score>maxc)maxc=d.score;});$('statNotes').textContent=(dets||[]).length;$('statConf').textContent=maxc?(maxc*100).toFixed(1)+'%':'—';$('statMs').textContent=ms?Math.round(ms):'—';var list=$('detList');list.innerHTML='';(dets||[]).forEach(function(d){var row=document.createElement('div');row.className='det-row';var badge=document.createElement('span');badge.className='det-badge';badge.textContent=clsName(d.cls);var sc=document.createElement('span');sc.textContent=(d.score*100).toFixed(1)+'%';row.appendChild(badge);row.appendChild(sc);list.appendChild(row);});}
+function draw(source,sw,sh,dets){canvas.width=sw;canvas.height=sh;ctx.drawImage(source,0,0,sw,sh);ctx.lineWidth=Math.max(2,sw/300);ctx.font='bold '+Math.max(14,Math.round(sw/40))+'px Helvetica,Arial,sans-serif';(dets||[]).forEach(function(d){var color=clsColor(d.cls);var x=d.box[0],y=d.box[1],w=d.box[2]-d.box[0],h=d.box[3]-d.box[1];ctx.strokeStyle=color;ctx.strokeRect(x,y,w,h);var cx=x+w/2,cy=y+h/2;ctx.fillStyle=color;ctx.beginPath();ctx.arc(cx,cy,Math.max(3,sw/220),0,Math.PI*2);ctx.fill();var label=clsName(d.cls)+' '+(d.score*100).toFixed(0)+'%';var tw=ctx.measureText(label).width;var th=Math.max(16,Math.round(sw/32));ctx.fillStyle=color;ctx.fillRect(x,y-th,tw+10,th);ctx.fillStyle='#fff';ctx.fillText(label,x+5,y-5);});}
+function updateStats(dets,ms){var maxc=0;(dets||[]).forEach(function(d){if(d.score>maxc)maxc=d.score;});$('statNotes').textContent=(dets||[]).length;$('statConf').textContent=maxc?(maxc*100).toFixed(1)+'%':'—';$('statMs').textContent=ms?Math.round(ms):'—';var list=$('detList');list.innerHTML='';(dets||[]).forEach(function(d){var row=document.createElement('div');row.className='det-row';var badge=document.createElement('span');badge.className='det-badge';badge.textContent=clsName(d.cls);badge.style.background=clsColor(d.cls);var sc=document.createElement('span');sc.textContent=(d.score*100).toFixed(1)+'%';row.appendChild(badge);row.appendChild(sc);list.appendChild(row);});}
 async function runInference(source,sw,sh){if(!session){setStatus('Model not ready yet','busy');return;}try{var pre=preprocess(source,sw,sh);var t0=performance.now();var feeds={};feeds[session.inputNames[0]]=pre.tensor;var out=await session.run(feeds);var ms=performance.now()-t0;var output=out[session.outputNames[0]];var dets=postprocess(output,pre);draw(source,sw,sh,dets);updateStats(dets,ms);return dets;}catch(e){setStatus('Inference error: '+String(e&&e.message||e),'err');console.error(e);}}
 function handleFile(file){if(!file)return;var img=new Image();img.onload=function(){lastImg=img;runInference(img,img.naturalWidth,img.naturalHeight);};img.onerror=function(){setStatus('Could not load image','err');};img.src=URL.createObjectURL(file);}
 function handleVideoFile(file){if(!file)return;stopVideo();stopCamera();video.srcObject=null;video.src=URL.createObjectURL(file);video.loop=false;video.muted=true;video.onloadeddata=function(){$('playVid').disabled=false;$('pauseVid').disabled=false;setStatus('Video loaded — press Play','on');draw(video,video.videoWidth,video.videoHeight,[]);};video.onended=function(){stopVideo();setStatus('Video ended','on');};video.onerror=function(){setStatus('Could not load video','err');};}
@@ -172,29 +190,12 @@ async function camLoop(){if(!running)return;if(video.readyState>=2){await runInf
 async function startCamera(){try{stopVideo();stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});video.srcObject=stream;await video.play();running=true;$('startCam').disabled=true;$('stopCam').disabled=false;setStatus('Live detection running','on');camLoop();}catch(e){setStatus('Camera access denied or unavailable','err');console.error(e);}}
 function stopCamera(){running=false;if(rafId)cancelAnimationFrame(rafId);if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}$('startCam').disabled=false;$('stopCam').disabled=true;}
 function setMode(m){mode=m;document.querySelectorAll('.mode-btn').forEach(function(b){b.classList.toggle('active',b.getAttribute('data-mode')===m);});$('imagePane').classList.add('hide');$('videoPane').classList.add('hide');$('camPane').classList.add('hide');if(m==='image'){$('imagePane').classList.remove('hide');stopCamera();stopVideo();}else if(m==='video'){$('videoPane').classList.remove('hide');stopCamera();}else{$('camPane').classList.remove('hide');stopVideo();}}
-var WORKER_URL='https://cadnote-gemini.mirindiderick.workers.dev';
-var NOTES={
-'5':{title:'$5 CAD',colour:'Blue',portrait:'Sir Wilfrid Laurier',metalPortrait:'Smaller holographic Laurier portrait',building:'West Block',reverse:'Canadarm2, Dextre, Mobile Base System, astronaut and Earth imagery; the theme celebrates Canadian robotics and contributions to the international space program.',tactile:'One six-dot symbol.'},
-'10':{title:'$10 CAD — Frontiers',colour:'Purple',portrait:'Sir John A. Macdonald',metalPortrait:'Smaller holographic Macdonald portrait',building:'Library of Parliament',reverse:'The Canadian passenger train, railway tracks and the Canadian Rockies; the theme represents the engineering achievement of linking eastern and western Canada by rail.',tactile:'Two six-dot symbols.'},
-'20':{title:'$20 CAD',colour:'Green',portrait:'Queen Elizabeth II',metalPortrait:'Smaller holographic portrait of Queen Elizabeth II',building:'Peace Tower',reverse:'Canadian National Vimy Memorial, including sculptural figures commemorating Canadian service and sacrifice in military conflicts.',tactile:'Three six-dot symbols.'},
-'50':{title:'$50 CAD',colour:'Red',portrait:'William Lyon Mackenzie King',metalPortrait:'Smaller holographic Mackenzie King portrait',building:'Centre Block',reverse:'CCGS Amundsen research icebreaker, Arctic map and northern research imagery; the theme concerns Arctic research and northern communities.',tactile:'Four six-dot symbols.'},
-'100':{title:'$100 CAD',colour:'Brown',portrait:'Sir Robert L. Borden',metalPortrait:'Smaller holographic Borden portrait',building:'East Block',reverse:'Medical innovation: microscope, insulin bottle, DNA strand, electrocardiogram and medical-research imagery.',tactile:'Two six-dot symbols separated by a wider smooth space than on the $10 note.'}
-};
-var currentNote='';
-var history=[];
-function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-function renderInfo(key){var info=$('chatInfo');if(!key||!NOTES[key]){info.classList.add('hide');info.innerHTML='';return;}var n=NOTES[key];info.classList.remove('hide');info.innerHTML='<div class="ci-title">'+esc(n.title)+'</div>'+'<div class="ci-row"><span class="ci-k">Main colour:</span> '+esc(n.colour)+'</div>'+'<div class="ci-row"><span class="ci-k">Front portrait:</span> '+esc(n.portrait)+'</div>'+'<div class="ci-row"><span class="ci-k">Metallic portrait:</span> '+esc(n.metalPortrait)+'</div>'+'<div class="ci-row"><span class="ci-k">Metallic Parliament building:</span> '+esc(n.building)+'</div>'+'<div class="ci-row"><span class="ci-k">Reverse theme:</span> '+esc(n.reverse)+'</div>'+'<div class="ci-row"><span class="ci-k">Tactile identifier:</span> '+esc(n.tactile)+'</div>'+'<div class="ci-row" style="margin-top:6px;color:#666;">Source: Bank of Canada</div>';}
-function addMsg(who,text,cls){var log=$('chatLog');var d=document.createElement('div');d.className='chat-msg '+cls;var w=document.createElement('span');w.className='who';w.textContent=who;d.appendChild(w);d.appendChild(document.createTextNode(text));log.appendChild(d);log.scrollTop=log.scrollHeight;return d;}
-function noteContext(key){var n=NOTES[key];if(!n)return '';return 'Reference facts for the '+n.title+' (source: Bank of Canada):\n- Main colour: '+n.colour+'\n- Front portrait: '+n.portrait+'\n- Metallic portrait: '+n.metalPortrait+'\n- Metallic Parliament building: '+n.building+'\n- Reverse theme and principal objects: '+n.reverse+'\n- Tactile identifier: '+n.tactile;}
-async function askAgent(question){var key=currentNote;if(!key){addMsg('Assistant','Please select a banknote from the dropdown first.','bot');return;}var sys='You are CADNote Assistant, a helpful expert on Canadian polymer banknotes. Answer only using the reference facts provided plus general, well-established knowledge about Canadian currency. Keep answers concise and factual. If asked about anything unrelated to Canadian banknotes, politely redirect. Never help with counterfeiting or forgery.';var prompt=sys+'\n\n'+noteContext(key)+'\n\nUser question about the '+NOTES[key].title+': '+question;var thinking=addMsg('Assistant','Thinking...','bot');$('chatSend').disabled=true;$('chatText').disabled=true;try{var resp=await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:prompt})});if(!resp.ok){throw new Error('Assistant service returned '+resp.status);}var data=await resp.json();var answer=(data&&(data.text||data.reply||data.answer))||'';if(!answer&&data&&data.candidates){try{answer=data.candidates[0].content.parts[0].text;}catch(e){}}thinking.remove();addMsg('Assistant',answer||'Sorry, I could not generate a response.','bot');}catch(e){thinking.remove();addMsg('Assistant','The assistant is currently unavailable ('+String(e&&e.message||e)+'). Meanwhile, see the reference facts shown above.','bot');console.error(e);}finally{$('chatSend').disabled=false;$('chatText').disabled=false;$('chatText').focus();}}
-function sendChat(){var inp=$('chatText');var q=inp.value.trim();if(!q)return;addMsg('You',q,'user');inp.value='';askAgent(q);}
-function wire(){var dz=$('dropZone'),fi=$('fileInput');dz.addEventListener('click',function(){fi.click();});fi.addEventListener('change',function(e){handleFile(e.target.files[0]);});dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag');});dz.addEventListener('dragleave',function(){dz.classList.remove('drag');});dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});var vd=$('videoDrop'),vi=$('videoInput');vd.addEventListener('click',function(){vi.click();});vi.addEventListener('change',function(e){handleVideoFile(e.target.files[0]);});vd.addEventListener('dragover',function(e){e.preventDefault();vd.classList.add('drag');});vd.addEventListener('dragleave',function(){vd.classList.remove('drag');});vd.addEventListener('drop',function(e){e.preventDefault();vd.classList.remove('drag');if(e.dataTransfer.files.length)handleVideoFile(e.dataTransfer.files[0]);});$('playVid').addEventListener('click',playVideo);$('pauseVid').addEventListener('click',function(){stopVideo();setStatus('Video paused','on');});$('confSlider').addEventListener('input',function(e){conf=parseFloat(e.target.value);$('confVal').textContent=conf.toFixed(2);if(mode==='image'&&lastImg)runInference(lastImg,lastImg.naturalWidth,lastImg.naturalHeight);});$('iouSlider').addEventListener('input',function(e){iou=parseFloat(e.target.value);$('iouVal').textContent=iou.toFixed(2);if(mode==='image'&&lastImg)runInference(lastImg,lastImg.naturalWidth,lastImg.naturalHeight);});document.querySelectorAll('.mode-btn').forEach(function(b){b.addEventListener('click',function(){setMode(b.getAttribute('data-mode'));});});$('startCam').addEventListener('click',startCamera);$('stopCam').addEventListener('click',function(){stopCamera();setStatus('Camera stopped','on');});$('noteSelect').addEventListener('change',function(e){currentNote=e.target.value;renderInfo(currentNote);if(currentNote&&NOTES[currentNote]){addMsg('Assistant','You selected the '+NOTES[currentNote].title+'. Ask me anything about its design, security features or theme.','bot');}});$('chatSend').addEventListener('click',sendChat);$('chatText').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();sendChat();}});}
+function renderLandmarkRef(){var ref=$('landmarkRef');if(!ref)return;var html='<ol style="margin:0 0 0 18px;padding:0;font-size:13px;line-height:1.6;">';for(var i=0;i<MODEL.classes.length;i++){html+='<li><span style="display:inline-block;width:10px;height:10px;background:'+clsColor(i)+';margin-right:6px;vertical-align:middle;"></span>'+MODEL.classes[i]+'</li>';}html+='</ol>';ref.innerHTML=html;}
+function wireMediapipeEmbed(){var btn=$('toggleMediapipeEmbed');var frame=$('mediapipeFrame');var url='https://storage.googleapis.com/tfjs-models/demos/hand-pose-detection/index.html?model=mediapipe_hands';btn.addEventListener('click',function(){if(frame.classList.contains('hide')){frame.src=url;frame.classList.remove('hide');btn.textContent='Hide Embedded Demo';}else{frame.classList.add('hide');frame.src='';btn.textContent='Toggle Embedded Demo';}});}
+function wire(){var dz=$('dropZone'),fi=$('fileInput');dz.addEventListener('click',function(){fi.click();});fi.addEventListener('change',function(e){handleFile(e.target.files[0]);});dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag');});dz.addEventListener('dragleave',function(){dz.classList.remove('drag');});dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0]);});var vd=$('videoDrop'),vi=$('videoInput');vd.addEventListener('click',function(){vi.click();});vi.addEventListener('change',function(e){handleVideoFile(e.target.files[0]);});vd.addEventListener('dragover',function(e){e.preventDefault();vd.classList.add('drag');});vd.addEventListener('dragleave',function(){vd.classList.remove('drag');});vd.addEventListener('drop',function(e){e.preventDefault();vd.classList.remove('drag');if(e.dataTransfer.files.length)handleVideoFile(e.dataTransfer.files[0]);});$('playVid').addEventListener('click',playVideo);$('pauseVid').addEventListener('click',function(){stopVideo();setStatus('Video paused','on');});$('confSlider').addEventListener('input',function(e){conf=parseFloat(e.target.value);$('confVal').textContent=conf.toFixed(2);if(mode==='image'&&lastImg)runInference(lastImg,lastImg.naturalWidth,lastImg.naturalHeight);});$('iouSlider').addEventListener('input',function(e){iou=parseFloat(e.target.value);$('iouVal').textContent=iou.toFixed(2);if(mode==='image'&&lastImg)runInference(lastImg,lastImg.naturalWidth,lastImg.naturalHeight);});document.querySelectorAll('.mode-btn').forEach(function(b){b.addEventListener('click',function(){setMode(b.getAttribute('data-mode'));});});$('startCam').addEventListener('click',startCamera);$('stopCam').addEventListener('click',function(){stopCamera();setStatus('Camera stopped','on');});wireMediapipeEmbed();renderLandmarkRef();}
 wire();
 loadModel();
 })();
 </script>
 </body>
-</html>"
-
-
-However, here I am not detect bank note but this is what the best best.onnx is detecting: "“I developed a deep-learning model that automatically identifies the hand and 17 anatomical reference points on pediatric hand X-rays. These landmarks can standardize X-ray analysis and support a future system for automated bone-age estimation."
+</html>
